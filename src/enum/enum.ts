@@ -1,0 +1,5 @@
+export enum ORDER_STATUS {
+  ACTIVE = 'ACTIVE',
+  CANCELED = 'CANCELED',
+  FILLED = 'FILLED',
+}
