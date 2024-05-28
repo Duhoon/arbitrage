@@ -7,6 +7,7 @@ import { ProviderService } from './config/provider';
 import { ContractModule } from './contract/contract.module';
 import { BinanceClientService } from './config/binanceClient';
 import { SignerService } from './config/signer';
+import { PeripheryModule } from './periphery/periphery.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { SignerService } from './config/signer';
     DBModule,
     ScheduleModule.forRoot(),
     CoreModule,
+    PeripheryModule,
     ContractModule,
   ],
   controllers: [],
