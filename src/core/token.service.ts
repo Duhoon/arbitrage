@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { baseTokens, quoteTokens } from 'src/constants/tokens';
 import { TokenMetaData } from 'src/models/token.model';
 import { DEXPairs, CEXPairs } from 'src/constants/pairs';
+import { Contract } from 'ethers';
 
 @Injectable()
 export class TokenService {

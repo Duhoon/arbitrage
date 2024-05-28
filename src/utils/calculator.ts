@@ -1,24 +1,24 @@
 import { formatUnits } from 'ethers';
 
 export function getAmountOut(
-  amountIn: number,
-  reserveIn: number,
-  reserveOut: number,
+  amountIn: bigint,
+  reserveIn: bigint,
+  reserveOut: bigint,
 ): bigint {
-  const amountInWithFee = BigInt(amountIn) * 997n;
-  const numerator = amountInWithFee * BigInt(reserveOut);
-  const denominator = BigInt(reserveIn) * 1000n + amountInWithFee;
+  const amountInWithFee = amountIn * 997n;
+  const numerator = amountInWithFee * reserveOut;
+  const denominator = reserveIn * 1000n + amountInWithFee;
 
   return numerator / denominator;
 }
 
 export function getAmountIn(
-  amountOut: number,
+  amountOut: bigint,
   reserveIn: bigint,
   reserveOut: bigint,
 ): bigint {
-  const numerator = reserveIn * BigInt(amountOut) * 1000n;
-  const denominator = (reserveOut - BigInt(amountOut)) * 997n;
+  const numerator = reserveIn * amountOut * 1000n;
+  const denominator = (reserveOut - amountOut) * 997n;
   return numerator / denominator + 1n;
 }
 

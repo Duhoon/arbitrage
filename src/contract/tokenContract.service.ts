@@ -21,6 +21,13 @@ export class TokenContractService {
     );
   }
 
+  async balance(tokenContract: Contract): Promise<bigint> {
+    const result = await tokenContract.balanceOf(
+      this.signerService.getWallet().address,
+    );
+    return result;
+  }
+
   async approve(tokenContract: Contract, to: string, amount: bigint) {
     const tokenContractWithSigner = tokenContract.connect(
       this.signerService.getWallet(),

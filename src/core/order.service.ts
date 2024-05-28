@@ -15,6 +15,7 @@ import { Repository } from 'typeorm';
 import { PairAddress } from 'src/constants/pairs';
 import { INPUT, TRADE_FEE_RATE } from 'src/constants/order';
 import { OrderHistory } from 'src/entities/orderHistory.entity';
+import { SheetsService } from 'src/periphery/sheets.service';
 
 @Injectable()
 export class OrderService {
@@ -34,13 +35,14 @@ export class OrderService {
     private readonly tokenContractService: TokenContractService,
     @Inject(BiswapService)
     private readonly biswapService: BiswapService,
+    @Inject(SheetsService)
+    private readonly sheetsService: SheetsService,
     @InjectRepository(PriceHistory)
     private readonly priceHistoryRepository: Repository<PriceHistory>,
     @InjectRepository(OrderHistory)
     private readonly orderHistoryRepository: Repository<OrderHistory>,
   ) {}
 
-  // @Timeout(1_000)
   test() {
     try {
       // this.order('NEARBNB', 1, 0.013700);
@@ -96,11 +98,13 @@ export class OrderService {
       this.tokenService.getTokensInfo(CEXPair);
 
     try {
-      const [CEXPrice, DEXPrice] = await this.priceService.getPrice();
+      console.time('[binanceToDEX] getPrice time');
+      const [CEXPrice, DEXPrice, cost] = await this.priceService.getPrice();
+      console.timeEnd('[binanceToDEX] getPrice time');
+
       const profit = (DEXPrice - CEXPrice) * INPUT;
       const profitRate = DEXPrice / CEXPrice - 1;
 
-      const cost = await this.calculateCostByBaseToken(CEXPair, INPUT);
       console.log(
         `[BinanceToDEX] profit: ${profit}, cost: ${cost}, profit - cost: ${profit - cost} profitRate: ${profitRate}`,
       );
@@ -119,8 +123,23 @@ export class OrderService {
       if (profit < cost || this.orderLock) {
         return;
       }
-
       this.orderLock = true;
+
+      const binanceAccountInfo =
+        await this.binanceClientService.client.userAsset();
+      const cexBalance = binanceAccountInfo.find(
+        (balance) =>
+          balance.asset === quoteTokenInfo.symbol ||
+          balance.asset === quoteTokenInfo.ex_symbol,
+      ).free;
+
+      const tokenContract = this.tokenContractService.getContract(
+        quoteTokenInfo.address,
+      );
+      const dexBalance = formatUnits(
+        (await this.tokenContractService.balance(tokenContract)).toString(),
+        quoteTokenInfo.decimals,
+      );
 
       // CEX Order
       const orderResult = await this.order(
@@ -129,13 +148,13 @@ export class OrderService {
         CEXPrice,
       );
 
+      // DEX Swap
       const [amountIn, amountOut] = await this.biswapService.getAmountOut(
         parseUnits(INPUT.toString(), baseTokenInfo.decimals),
         baseTokenInfo.address,
         quoteTokenInfo.address,
       );
 
-      // DEX Swap
       const swapResult = await this.biswapService.swapExactTokensForTokens(
         amountIn,
         amountOut,
@@ -150,6 +169,17 @@ export class OrderService {
         cost,
         orderId: orderResult.clientOrderId,
         swapTxHash: swapResult.hash,
+      });
+
+      await this.sheetsService.appendRow({
+        date: currentDate,
+        pair: CEXPair,
+        input: INPUT,
+        cex_price: CEXPrice,
+        dex_price: DEXPrice,
+        cost: cost,
+        cex_balance: cexBalance,
+        dex_balance: dexBalance,
       });
 
       swapResult.wait().then((result) => {
@@ -326,4 +356,6 @@ export class OrderService {
 
     return totalFee;
   }
+
+  async getCEXBalance(tokenSymbol: string) {}
 }
