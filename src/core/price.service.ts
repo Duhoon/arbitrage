@@ -15,6 +15,8 @@ import {
 } from 'src/utils/calculator';
 import { TRADE_FEE_RATE } from 'src/constants/order';
 import { Timeout } from '@nestjs/schedule';
+import { PriceDTO } from 'src/models/price.model';
+import { Pair } from 'src/models/pair.model';
 
 @Injectable()
 export class PriceService {
@@ -31,35 +33,33 @@ export class PriceService {
     private readonly priceHistoryRepository: Repository<PriceHistory>,
   ) {}
 
-  // @Timeout(1_000)
+  @Timeout(1_000)
   async test() {
-    console.log(await this.getPrice());
-    console.log(await this.getPriceByReserve());
+    // console.log(`GetPrice Result: ${await this.getPrice()}`);
+    // console.log(`GetPriceByReserve Result: ${await this.getPriceByReserve()}`);
   }
 
-  async getPrice() {
+  async getPrice({ name, address, token0, token1 }: Pair): Promise<PriceDTO> {
+    const currentTime = new Date();
+
     try {
-      const cexPair = this.tokenService.pairs.CEXPairs[this.pairIndex];
-      const dexPair = this.tokenService.pairs.DEXPairs[this.pairIndex];
-      const [baseToken, quoteToken] = this.tokenService.getTokensInfo(dexPair);
       const pairContract = await this.biswapService.getPair(
-        dexPair,
-        baseToken.address,
-        quoteToken.address,
+        address,
+        token0.address,
+        token1.address,
       );
 
       const [baseReserve, quoteReserve] =
         await this.biswapService.getReserves(pairContract);
 
       const [amountIn, amountOut] = await this.biswapService.getAmountOut(
-        parseUnits(INPUT.toString(), baseToken.decimals),
-        baseToken.address,
-        quoteToken.address,
+        parseUnits(INPUT.toString(), token0.decimals),
+        token0.address,
+        token1.address,
       );
 
       const dexPrice = Number(amountOut) / Number(amountIn);
-      const cexPrice = await this.callCEXPrice(cexPair);
-      const currentTime = new Date();
+      const cexPrice = await this.callCEXPrice(name);
 
       // cost 계산
       const cexTradeFee = INPUT * TRADE_FEE_RATE;
@@ -67,26 +67,37 @@ export class PriceService {
         await this.biswapService.estimateGasByswapExactTokensForTokens(
           amountIn,
           amountOut,
-          [baseToken.address, quoteToken.address],
+          [token0.address, token1.address],
         );
       const costByPriceImpact = calculatePriceImpact(
         amountIn,
         amountOut,
         baseReserve,
         quoteReserve,
-        baseToken.decimals,
-        quoteToken.decimals,
+        token0.decimals,
+        token1.decimals,
       );
 
+      console.log(
+        `[caluclateCost] TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}, PI: ${costByPriceImpact}`,
+      );
       const totalFee =
         cexTradeFee +
-        Number(swapGasFee) / 10 ** baseToken.decimals +
+        Number(swapGasFee) / 10 ** token1.decimals +
         Math.abs(INPUT * costByPriceImpact);
 
-      const logstr = `${currentTime.toISOString()} ${cexPair} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
+      const logstr = `${currentTime.toISOString()} ${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
       console.log(logstr);
 
-      return [cexPrice, dexPrice, totalFee];
+      return {
+        cexPrice,
+        dexPrice,
+        totalFee,
+        amountIn,
+        amountOut,
+        baseReserve,
+        quoteReserve,
+      };
     } catch (err) {
       console.log(err);
     }
@@ -118,7 +129,6 @@ export class PriceService {
         baseReserve,
         quoteReserve,
       );
-      console.log(amountOut);
 
       const dexPrice =
         Number(formatUnits(amountOut, quoteTokenInfo.decimals)) / INPUT;

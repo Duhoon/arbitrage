@@ -34,15 +34,15 @@ export class BiswapService {
   }
 
   async getPair(
-    pair: string,
+    pairAddress: string,
     tokenA: string,
     tokenB: string,
   ): Promise<Contract> {
-    let pairAddress: string = PairAddress[pair];
-    if (!pairAddress) {
-      pairAddress = await this.biswapFactory.getPair(tokenA, tokenB);
-      console.log(`[getPair] new pair: ${pairAddress}`);
-    }
+    // let pairAddress: string = PairAddress[pair];
+    // if (!pairAddress) {
+    //   pairAddress = await this.biswapFactory.getPair(tokenA, tokenB);
+    //   console.log(`[getPair] new pair: ${pairAddress}`);
+    // }
 
     const pairContract = new Contract(
       pairAddress,

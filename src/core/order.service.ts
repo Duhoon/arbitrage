@@ -12,7 +12,7 @@ import { calculatePriceImpact } from 'src/utils/calculator';
 import { parseUnits, MaxInt256, formatUnits } from 'ethers';
 import { PriceHistory } from 'src/entities/priceHistory.entity';
 import { Repository } from 'typeorm';
-import { PairAddress } from 'src/constants/pairs';
+import { PairAddress, Pairs } from 'src/constants/pairs';
 import { INPUT, TRADE_FEE_RATE } from 'src/constants/order';
 import { OrderHistory } from 'src/entities/orderHistory.entity';
 import { SheetsService } from 'src/periphery/sheets.service';
@@ -55,12 +55,10 @@ export class OrderService {
 
   @Timeout(0)
   async initPair() {
-    const pair = this.tokenService.pairs.CEXPairs[this.pairIndex];
-    const [baseTokenInfo, quoteTokenInfo] =
-      this.tokenService.getTokensInfo(pair);
+    const pair = Pairs[this.pairIndex];
 
     const baseTokenContract = this.tokenContractService.getContract(
-      baseTokenInfo.address,
+      pair.token0.address,
     );
 
     // const pairAddress = PairAddress[pair];
@@ -93,34 +91,40 @@ export class OrderService {
   @Interval(2_000)
   async binanceToDEX() {
     const currentDate = new Date();
-    const CEXPair = this.tokenService.pairs.CEXPairs[this.pairIndex];
-    const [baseTokenInfo, quoteTokenInfo] =
-      this.tokenService.getTokensInfo(CEXPair);
+    const pair = Pairs[this.pairIndex];
 
     try {
-      console.time('[binanceToDEX] getPrice time');
-      const [CEXPrice, DEXPrice, cost] = await this.priceService.getPrice();
-      console.timeEnd('[binanceToDEX] getPrice time');
+      console.time(`[binanceToDEX] getPrice time ${currentDate.getTime()}`);
+      const {
+        cexPrice,
+        dexPrice,
+        totalFee,
+        amountIn,
+        amountOut,
+        baseReserve,
+        quoteReserve,
+      } = await this.priceService.getPrice(pair);
+      console.timeEnd(`[binanceToDEX] getPrice time ${currentDate.getTime()}`);
 
-      const profit = (DEXPrice - CEXPrice) * INPUT;
-      const profitRate = DEXPrice / CEXPrice - 1;
+      const profit = (dexPrice - cexPrice) * INPUT;
+      const profitRate = dexPrice / cexPrice - 1;
 
       console.log(
-        `[BinanceToDEX] profit: ${profit}, cost: ${cost}, profit - cost: ${profit - cost} profitRate: ${profitRate}`,
+        `[BinanceToDEX] profit: ${profit}, cost: ${totalFee}, profit - cost: ${profit - totalFee} profitRate: ${profitRate}`,
       );
 
       const priceHistory = await this.priceHistoryRepository.save({
-        pair: CEXPair,
+        pair: pair.name,
         currentDate,
         input: INPUT,
-        dexPrice: DEXPrice,
-        cexPrice: CEXPrice,
+        dexPrice,
+        cexPrice,
         profit: profit,
-        cost: cost,
-        chance: profit > cost,
+        cost: totalFee,
+        chance: profit > totalFee,
       });
 
-      if (profit < cost || this.orderLock) {
+      if (profit < totalFee || this.orderLock) {
         return;
       }
       this.orderLock = true;
@@ -129,55 +133,49 @@ export class OrderService {
         await this.binanceClientService.client.userAsset();
       const cexBalance = binanceAccountInfo.find(
         (balance) =>
-          balance.asset === quoteTokenInfo.symbol ||
-          balance.asset === quoteTokenInfo.ex_symbol,
+          balance.asset === pair.token1.symbol ||
+          balance.asset === pair.token1.ex_symbol,
       ).free;
 
       const tokenContract = this.tokenContractService.getContract(
-        quoteTokenInfo.address,
+        pair.token0.address,
       );
       const dexBalance = formatUnits(
         (await this.tokenContractService.balance(tokenContract)).toString(),
-        quoteTokenInfo.decimals,
+        pair.token1.decimals,
       );
 
       // CEX Order
       const orderResult = await this.order(
-        `${baseTokenInfo.ex_symbol}${quoteTokenInfo.ex_symbol}`,
+        `${pair.token0.ex_symbol}${pair.token1.ex_symbol}`,
         INPUT,
-        CEXPrice,
+        cexPrice,
       );
 
       // DEX Swap
-      const [amountIn, amountOut] = await this.biswapService.getAmountOut(
-        parseUnits(INPUT.toString(), baseTokenInfo.decimals),
-        baseTokenInfo.address,
-        quoteTokenInfo.address,
-      );
-
       const swapResult = await this.biswapService.swapExactTokensForTokens(
         amountIn,
         amountOut,
-        [baseTokenInfo.address, quoteTokenInfo.address],
+        [pair.token0.address, pair.token1.address],
       );
 
       const orderHistory = await this.orderHistoryRepository.save({
         priceId: priceHistory.id,
-        pair: CEXPair,
+        pair: pair.name,
         currentDate,
         profit,
-        cost,
+        cost: totalFee,
         orderId: orderResult.clientOrderId,
         swapTxHash: swapResult.hash,
       });
 
       await this.sheetsService.appendRow({
         date: currentDate,
-        pair: CEXPair,
+        pair: pair.name,
         input: INPUT,
-        cex_price: CEXPrice,
-        dex_price: DEXPrice,
-        cost: cost,
+        cex_price: cexPrice,
+        dex_price: dexPrice,
+        cost: totalFee,
         cex_balance: cexBalance,
         dex_balance: dexBalance,
       });
@@ -194,7 +192,7 @@ export class OrderService {
     }
   }
 
-  async DEXToBinance(symbol: string, input: number, price: number) {}
+  async DEXToBinance() {}
 
   private async order(
     symbol: string,
