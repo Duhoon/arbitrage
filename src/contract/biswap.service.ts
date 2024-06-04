@@ -6,6 +6,8 @@ import * as BiswapRouterABI from './biswapRouter.json';
 import * as BiswapFactoryABI from './biswapFactory.json';
 import * as BiswapPairABI from './biswapPair.json';
 import { SignerService } from 'src/config/signer';
+import { SLIPPAGE_TOLERANCE_RATE } from 'src/constants/order';
+import BigNumber from 'bignumber.js';
 
 @Injectable()
 export class BiswapService {
@@ -153,16 +155,23 @@ export class BiswapService {
   }
 
   async getAmountOut(
-    amountIn: number | string | bigint,
+    input: number | string | bigint,
     token0Address: string,
     token1Address: string,
   ): Promise<[bigint, bigint]> {
-    const amountOut = await this.biswapRouter.getAmountsOut(amountIn, [
-      token0Address,
-      token1Address,
-    ]);
+    const [amountIn, amountOut] = (await this.biswapRouter.getAmountsOut(
+      input,
+      [token0Address, token1Address],
+    )) as [bigint, bigint];
 
-    return amountOut;
+    return [
+      amountIn,
+      BigInt(
+        BigNumber(amountOut.toString())
+          .times(1 - SLIPPAGE_TOLERANCE_RATE)
+          .toFixed(0),
+      ),
+    ];
   }
 
   async getAmountIn(

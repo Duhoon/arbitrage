@@ -4,6 +4,6 @@ export interface PriceDTO {
   totalFee: number;
   amountIn: bigint;
   amountOut: bigint;
-  baseReserve: bigint;
-  quoteReserve: bigint;
+  baseReserve?: bigint;
+  quoteReserve?: bigint;
 }

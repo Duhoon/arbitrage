@@ -7,7 +7,7 @@ import { PriceHistory } from 'src/entities/priceHistory.entity';
 import { Repository } from 'typeorm';
 import { BinanceClientService } from 'src/config/binanceClient';
 import { INPUT } from 'src/constants/order';
-import { parseUnits, formatUnits } from 'ethers';
+import { parseUnits, formatUnits, formatEther } from 'ethers';
 import {
   calculatePriceImpact,
   getAmountOut,
@@ -39,21 +39,15 @@ export class PriceService {
     // console.log(`GetPriceByReserve Result: ${await this.getPriceByReserve()}`);
   }
 
-  async getPrice({ name, address, token0, token1 }: Pair): Promise<PriceDTO> {
+  async getPrice(
+    { name, address, token0, token1 }: Pair,
+    input: number,
+  ): Promise<PriceDTO> {
     const currentTime = new Date();
 
     try {
-      const pairContract = await this.biswapService.getPair(
-        address,
-        token0.address,
-        token1.address,
-      );
-
-      const [baseReserve, quoteReserve] =
-        await this.biswapService.getReserves(pairContract);
-
       const [amountIn, amountOut] = await this.biswapService.getAmountOut(
-        parseUnits(INPUT.toString(), token0.decimals),
+        parseUnits(input.toString(), token0.decimals),
         token0.address,
         token1.address,
       );
@@ -62,29 +56,18 @@ export class PriceService {
       const cexPrice = await this.callCEXPrice(name);
 
       // cost 계산
-      const cexTradeFee = INPUT * TRADE_FEE_RATE;
+      const cexTradeFee = input * TRADE_FEE_RATE;
       const swapGasFee =
         await this.biswapService.estimateGasByswapExactTokensForTokens(
           amountIn,
           amountOut,
           [token0.address, token1.address],
         );
-      const costByPriceImpact = calculatePriceImpact(
-        amountIn,
-        amountOut,
-        baseReserve,
-        quoteReserve,
-        token0.decimals,
-        token1.decimals,
-      );
 
       console.log(
-        `[caluclateCost] TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}, PI: ${costByPriceImpact}`,
+        `[caluclateCost] TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}`,
       );
-      const totalFee =
-        cexTradeFee +
-        Number(swapGasFee) / 10 ** token1.decimals +
-        Math.abs(INPUT * costByPriceImpact);
+      const totalFee = cexTradeFee + Number(formatUnits(swapGasFee, 9));
 
       const logstr = `${currentTime.toISOString()} ${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
       console.log(logstr);
@@ -95,8 +78,6 @@ export class PriceService {
         totalFee,
         amountIn,
         amountOut,
-        baseReserve,
-        quoteReserve,
       };
     } catch (err) {
       console.log(err);
@@ -186,141 +167,5 @@ export class PriceService {
       console.log(err);
       throw err;
     }
-  }
-
-  async getAmountOut(input: number) {
-    const pair = this.tokenService.pairs.DEXPairs[this.pairIndex];
-    const [baseTokenInfo, quoteTokenInfo] =
-      this.tokenService.getTokensInfo(pair);
-
-    const [amountIn, amountOut] = await this.biswapService.getAmountOut(
-      BigInt(input * 10 ** baseTokenInfo.decimals),
-      baseTokenInfo.address,
-      quoteTokenInfo.address,
-    );
-
-    return Number(amountOut) / 10 ** quoteTokenInfo.decimals;
-  }
-
-  async getAmountIn(input: number) {
-    const pair = this.tokenService.pairs.DEXPairs[this.pairIndex];
-    const [baseTokenInfo, quoteTokenInfo] =
-      this.tokenService.getTokensInfo(pair);
-
-    const [amountIn, amountOut] = await this.biswapService.getAmountIn(
-      BigInt(input * 10 ** quoteTokenInfo.decimals),
-      baseTokenInfo.address,
-      quoteTokenInfo.address,
-    );
-
-    return Number(amountIn) / 10 ** baseTokenInfo.decimals;
-  }
-
-  async calculateCostByBaseToken(pair: string, input: number): Promise<number> {
-    const [baseTokenInfo, quoteTokenInfo] =
-      this.tokenService.getTokensInfo(pair);
-    const pairContract = await this.biswapService.getPair(
-      pair,
-      baseTokenInfo.address,
-      quoteTokenInfo.address,
-    );
-
-    const inputWithDecimal = parseUnits(
-      input.toString(),
-      baseTokenInfo.decimals,
-    );
-    const [baseReserve, quoteReserve] =
-      await this.biswapService.getReserves(pairContract);
-
-    // 1. CEX 거래 수수료
-    const cexTradeFee = input * TRADE_FEE_RATE;
-    // 2. DEX swap 가스비
-    const [amountIn, amountOut] = await this.biswapService.getAmountOut(
-      inputWithDecimal,
-      baseTokenInfo.address,
-      quoteTokenInfo.address,
-    );
-
-    const swapGasFee =
-      await this.biswapService.estimateGasByswapExactTokensForTokens(
-        amountIn,
-        amountOut,
-        [baseTokenInfo.address, quoteTokenInfo.address],
-      );
-    console.log(formatUnits(swapGasFee, 18));
-
-    // 3. Price Impact
-    const costByPriceImpact = calculatePriceImpact(
-      amountIn,
-      amountOut,
-      baseReserve,
-      quoteReserve,
-      baseTokenInfo.decimals,
-      quoteTokenInfo.decimals,
-    );
-
-    console.log(
-      `[CostByBaseToken] CEX Trade Fee: ${cexTradeFee}, Swap Fee: ${Number(swapGasFee) / 10 ** baseTokenInfo.decimals}, PI : ${input * costByPriceImpact}`,
-    );
-
-    const totalFee =
-      cexTradeFee +
-      Number(swapGasFee) / 10 ** baseTokenInfo.decimals +
-      input * costByPriceImpact;
-
-    return totalFee;
-  }
-
-  async calculateCostByQuoteToken(
-    pair: string,
-    input: number,
-  ): Promise<number> {
-    const [baseTokenInfo, quoteTokenInfo] =
-      this.tokenService.getTokensInfo(pair);
-    const pairContract = await this.biswapService.getPair(
-      pair,
-      baseTokenInfo.address,
-      quoteTokenInfo.address,
-    );
-
-    const inputWithDecimal = parseUnits(
-      input.toString(),
-      quoteTokenInfo.decimals,
-    );
-    const [baseReserve, quoteReserve] =
-      await this.biswapService.getReserves(pairContract);
-
-    // 1. CEX 거래 수수료
-    const cexTradeFee = input * TRADE_FEE_RATE;
-    // 2. DEX swap 가스비
-    const [amountIn, amountOut] = await this.biswapService.getAmountIn(
-      inputWithDecimal,
-      baseTokenInfo.address,
-      quoteTokenInfo.address,
-    );
-
-    const swapGasFee =
-      await this.biswapService.estimateGasByswapTokensForExactTokens(
-        amountIn,
-        amountOut,
-        [baseTokenInfo.address, quoteTokenInfo.address],
-      );
-
-    // 3. Price Impact
-    const costByPriceImpact = calculatePriceImpact(
-      amountOut,
-      amountIn,
-      baseReserve,
-      quoteReserve,
-      baseTokenInfo.decimals,
-      quoteTokenInfo.decimals,
-    );
-
-    const totalFee =
-      cexTradeFee +
-      Number(swapGasFee) / 10 ** baseTokenInfo.decimals +
-      Math.abs(input * costByPriceImpact);
-
-    return totalFee;
   }
 }

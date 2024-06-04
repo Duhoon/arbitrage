@@ -95,15 +95,8 @@ export class OrderService {
 
     try {
       console.time(`[binanceToDEX] getPrice time ${currentDate.getTime()}`);
-      const {
-        cexPrice,
-        dexPrice,
-        totalFee,
-        amountIn,
-        amountOut,
-        baseReserve,
-        quoteReserve,
-      } = await this.priceService.getPrice(pair);
+      const { cexPrice, dexPrice, totalFee, amountIn, amountOut } =
+        await this.priceService.getPrice(pair, INPUT);
       console.timeEnd(`[binanceToDEX] getPrice time ${currentDate.getTime()}`);
 
       const profit = (dexPrice - cexPrice) * INPUT;
@@ -192,7 +185,107 @@ export class OrderService {
     }
   }
 
-  async DEXToBinance() {}
+  async DEXToBinance() {
+    const currentDate = new Date();
+    const pair = {
+      ...Pairs[this.pairIndex],
+    };
+
+    const temp = pair.token0;
+    pair.token0 = pair.token1;
+    pair.token1 = temp;
+
+    try {
+      console.time(`[binanceToDEX] getPrice time ${currentDate.getTime()}`);
+      const { cexPrice, dexPrice, totalFee, amountIn, amountOut } =
+        await this.priceService.getPrice(pair, INPUT);
+      console.timeEnd(`[binanceToDEX] getPrice time ${currentDate.getTime()}`);
+
+      const profit = (dexPrice - cexPrice) * INPUT;
+      const profitRate = dexPrice / cexPrice - 1;
+
+      console.log(
+        `[BinanceToDEX] profit: ${profit}, cost: ${totalFee}, profit - cost: ${profit - totalFee} profitRate: ${profitRate}`,
+      );
+
+      const priceHistory = await this.priceHistoryRepository.save({
+        pair: pair.name,
+        currentDate,
+        input: INPUT,
+        dexPrice,
+        cexPrice,
+        profit: profit,
+        cost: totalFee,
+        chance: profit > totalFee,
+      });
+
+      if (profit < totalFee || this.orderLock) {
+        return;
+      }
+      this.orderLock = true;
+
+      const binanceAccountInfo =
+        await this.binanceClientService.client.userAsset();
+      const cexBalance = binanceAccountInfo.find(
+        (balance) =>
+          balance.asset === pair.token1.symbol ||
+          balance.asset === pair.token1.ex_symbol,
+      ).free;
+
+      const tokenContract = this.tokenContractService.getContract(
+        pair.token1.address,
+      );
+      const dexBalance = formatUnits(
+        (await this.tokenContractService.balance(tokenContract)).toString(),
+        pair.token1.decimals,
+      );
+
+      // CEX Order
+      const orderResult = await this.order(
+        `${pair.token0.ex_symbol}${pair.token1.ex_symbol}`,
+        INPUT,
+        cexPrice,
+      );
+
+      // DEX Swap
+      const swapResult = await this.biswapService.swapExactTokensForTokens(
+        amountIn,
+        amountOut,
+        [pair.token0.address, pair.token1.address],
+      );
+
+      const orderHistory = await this.orderHistoryRepository.save({
+        priceId: priceHistory.id,
+        pair: pair.name,
+        currentDate,
+        profit,
+        cost: totalFee,
+        orderId: orderResult.clientOrderId,
+        swapTxHash: swapResult.hash,
+      });
+
+      await this.sheetsService.appendRow({
+        date: currentDate,
+        pair: pair.name,
+        input: INPUT,
+        cex_price: cexPrice,
+        dex_price: dexPrice,
+        cost: totalFee,
+        cex_balance: cexBalance,
+        dex_balance: dexBalance,
+      });
+
+      swapResult.wait().then((result) => {
+        this.orderHistoryRepository.update(orderHistory.id, {
+          swapSuccess: true,
+        });
+      });
+    } catch (err) {
+      console.log(err);
+    } finally {
+      this.orderLock = false;
+    }
+  }
 
   private async order(
     symbol: string,

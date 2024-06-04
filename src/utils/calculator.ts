@@ -1,4 +1,5 @@
 import { formatUnits } from 'ethers';
+import BigNumber from 'bignumber.js';
 
 export function getAmountOut(
   amountIn: bigint,
@@ -8,6 +9,15 @@ export function getAmountOut(
   const amountInWithFee = amountIn * 997n;
   const numerator = amountInWithFee * reserveOut;
   const denominator = reserveIn * 1000n + amountInWithFee;
+
+  const amountInWithFeeBG = BigNumber(amountIn.toString()).times(997);
+  const numeratorBG = amountInWithFeeBG.times(BigNumber(reserveOut.toString()));
+  const denominatorBG = BigNumber(reserveIn.toString())
+    .times(1000)
+    .plus(amountInWithFeeBG);
+
+  console.log(numerator / denominator);
+  console.log(numeratorBG.div(denominatorBG).toString());
 
   return numerator / denominator;
 }
@@ -30,11 +40,12 @@ export function calculatePriceImpact(
   decimalIn: number,
   decimalOut: number,
 ) {
-  const actualPrice = Number(amountOut) / Number(amountIn);
+  const actualPrice = BigNumber(amountOut.toString()).div(
+    BigNumber(amountIn.toString()),
+  );
 
-  const idealPrice =
-    Number(formatUnits(reserveOut.toString(), decimalIn)) /
-    Number(formatUnits(reserveIn.toString(), decimalOut));
-
-  return Math.abs(actualPrice / idealPrice - 1);
+  const idealPrice = BigNumber(
+    formatUnits(reserveOut.toString(), decimalIn),
+  ).div(BigNumber(formatUnits(reserveIn.toString(), decimalOut)));
+  return Math.abs(actualPrice.div(idealPrice).toNumber() - 1);
 }

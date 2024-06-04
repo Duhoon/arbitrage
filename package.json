@@ -32,6 +32,7 @@
     "@nestjs/schedule": "^4.0.2",
     "@nestjs/typeorm": "^10.0.2",
     "axios": "^1.6.8",
+    "bignumber.js": "^9.1.2",
     "crypto-js": "^4.2.0",
     "ethers": "^6.12.1",
     "googleapis": "^137.1.0",
