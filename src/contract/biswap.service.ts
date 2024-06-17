@@ -166,6 +166,7 @@ export class BiswapService {
 
     return [
       amountIn,
+      // amountOut,
       BigInt(
         BigNumber(amountOut.toString())
           .times(1 - SLIPPAGE_TOLERANCE_RATE)

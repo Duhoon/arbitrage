@@ -15,8 +15,8 @@ import {
 } from 'src/utils/calculator';
 import { TRADE_FEE_RATE } from 'src/constants/order';
 import { Timeout } from '@nestjs/schedule';
-import { PriceDTO } from 'src/models/price.model';
-import { Pair } from 'src/models/pair.model';
+import { PriceDTO } from 'src/types/price.model';
+import { Pair } from 'src/types/pair.model';
 
 @Injectable()
 export class PriceService {
@@ -53,7 +53,7 @@ export class PriceService {
       );
 
       const dexPrice = Number(amountOut) / Number(amountIn);
-      const cexPrice = await this.callCEXPrice(name);
+      const cexPrice = await this.getCEXPrice(name);
 
       // cost 계산
       const cexTradeFee = input * TRADE_FEE_RATE;
@@ -84,48 +84,52 @@ export class PriceService {
     }
   }
 
-  async getPriceByReserve() {
+  async getPriceByReserve(
+    { name, address, token0, token1 }: Pair,
+    input: number,
+  ): Promise<PriceDTO> {
+    const currentTime = new Date();
+
     try {
-      const currentTime = new Date();
-
-      const cexPair = this.tokenService.pairs.CEXPairs[this.pairIndex];
-      const dexPair = this.tokenService.pairs.DEXPairs[this.pairIndex];
-
-      const [baseTokenInfo, quoteTokenInfo] =
-        this.tokenService.getTokensInfo(dexPair);
-
-      const pairContract = await this.biswapService.getPair(
-        dexPair,
-        baseTokenInfo.address,
-        quoteTokenInfo.address,
+      const [amountIn, amountOut] = await this.biswapService.getAmountOut(
+        parseUnits(input.toString(), token0.decimals),
+        token0.address,
+        token1.address,
       );
 
-      const [baseReserve, quoteReserve] =
-        await this.biswapService.getReserves(pairContract);
+      const dexPrice = Number(amountIn) / Number(amountOut);
+      const cexPrice = await this.getCEXPrice(name);
 
-      const cexPrice = await this.callCEXPrice(cexPair);
+      // cost 계산
+      const cexTradeFee = input * TRADE_FEE_RATE;
+      const swapGasFee =
+        await this.biswapService.estimateGasByswapExactTokensForTokens(
+          amountIn,
+          amountOut,
+          [token0.address, token1.address],
+        );
 
-      const amountOut = getAmountOut(
-        parseUnits(INPUT.toString(), baseTokenInfo.decimals),
-        baseReserve,
-        quoteReserve,
+      console.log(
+        `[caluclateCost] TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}`,
       );
+      const totalFee = cexTradeFee + Number(formatUnits(swapGasFee, 9));
 
-      const dexPrice =
-        Number(formatUnits(amountOut, quoteTokenInfo.decimals)) / INPUT;
-
-      const logstr = `${currentTime.toISOString()} ${cexPair} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
-      const profit = (dexPrice - cexPrice) * INPUT;
-
+      const logstr = `${currentTime.toISOString()} ${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
       console.log(logstr);
 
-      return [cexPrice, dexPrice];
+      return {
+        cexPrice,
+        dexPrice,
+        totalFee,
+        amountIn,
+        amountOut,
+      };
     } catch (err) {
       console.log(err);
     }
   }
 
-  async callCEXPrice(pair: string) {
+  async getCEXPrice(pair: string) {
     const [baseTokenSymbol, quoteTokenSymbol] =
       this.tokenService.getSymbol(pair);
 
@@ -136,7 +140,7 @@ export class PriceService {
     return marketStatus;
   }
 
-  async callDEXPrice(pair: string, input: number): Promise<number> {
+  async getDEXPrice(pair: string, input: number): Promise<number> {
     const [baseToken, quoteToken] = this.tokenService.getTokensInfo(pair);
     const baseTokenAmount = parseUnits(input.toString(), baseToken.decimals);
 
@@ -148,13 +152,6 @@ export class PriceService {
     console.log(amountOut);
 
     return Number(amountOut) / Number(amountIn);
-  }
-
-  async getCEXPrice(symbol: string): Promise<any> {
-    const result = await this.binanceService.client.currentAveragePrice(symbol);
-    const info = { ...result, closeTime: new Date(result.closeTime) };
-
-    return info;
   }
 
   async getCEXOrder(symbol: string): Promise<any> {

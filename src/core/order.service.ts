@@ -13,7 +13,7 @@ import { parseUnits, MaxInt256, formatUnits } from 'ethers';
 import { PriceHistory } from 'src/entities/priceHistory.entity';
 import { Repository } from 'typeorm';
 import { PairAddress, Pairs } from 'src/constants/pairs';
-import { INPUT, TRADE_FEE_RATE } from 'src/constants/order';
+import { INPUT, TOKEN_B_INPUT, TRADE_FEE_RATE } from 'src/constants/order';
 import { OrderHistory } from 'src/entities/orderHistory.entity';
 import { SheetsService } from 'src/periphery/sheets.service';
 
@@ -61,30 +61,35 @@ export class OrderService {
       pair.token0.address,
     );
 
-    // const pairAddress = PairAddress[pair];
-    const routerAddress = await this.biswapService.biswapRouter.getAddress();
-
-    let allowanceToRouter = await this.tokenContractService.allowance(
-      baseTokenContract,
-      routerAddress,
+    const quoteTokenContract = this.tokenContractService.getContract(
+      pair.token1.address,
     );
 
-    console.log(`[initPair] Allowance to pair: ${allowanceToRouter}`);
+    const routerAddress = await this.biswapService.biswapRouter.getAddress();
 
-    if (allowanceToRouter <= 0) {
-      console.log(`[initPair] Infinite Approve to Pair for ${pair}`);
-      await this.tokenContractService.approve(
-        baseTokenContract,
-        routerAddress,
-        MaxInt256,
-      );
-      allowanceToRouter = await this.tokenContractService.allowance(
-        baseTokenContract,
+    for (const tokenContract of [baseTokenContract, quoteTokenContract]) {
+      let allowanceToRouter = await this.tokenContractService.allowance(
+        tokenContract,
         routerAddress,
       );
-      console.log(
-        `[initPair] Allowance to Router after Approve: ${allowanceToRouter}`,
-      );
+
+      console.log(`[initPair] Allowance to pair: ${allowanceToRouter}`);
+
+      if (allowanceToRouter <= 0) {
+        console.log(`[initPair] Infinite Approve to Pair for ${pair}`);
+        await this.tokenContractService.approve(
+          tokenContract,
+          routerAddress,
+          MaxInt256,
+        );
+        allowanceToRouter = await this.tokenContractService.allowance(
+          tokenContract,
+          routerAddress,
+        );
+        console.log(
+          `[initPair] Allowance to Router after Approve: ${allowanceToRouter}`,
+        );
+      }
     }
   }
 
@@ -103,7 +108,7 @@ export class OrderService {
       const profitRate = dexPrice / cexPrice - 1;
 
       console.log(
-        `[BinanceToDEX] profit: ${profit}, cost: ${totalFee}, profit - cost: ${profit - totalFee} profitRate: ${profitRate}`,
+        `[binanceToDEX] profit: ${profit}, cost: ${totalFee}, profit - cost: ${profit - totalFee} profitRate: ${profitRate}`,
       );
 
       const priceHistory = await this.priceHistoryRepository.save({
@@ -179,12 +184,13 @@ export class OrderService {
         });
       });
     } catch (err) {
-      console.log(err);
+      console.error(err);
     } finally {
       this.orderLock = false;
     }
   }
 
+  @Interval(2_000)
   async DEXToBinance() {
     const currentDate = new Date();
     const pair = {
@@ -196,16 +202,16 @@ export class OrderService {
     pair.token1 = temp;
 
     try {
-      console.time(`[binanceToDEX] getPrice time ${currentDate.getTime()}`);
+      console.time(`[DEXToBinance] getPrice time ${currentDate.getTime()}`);
       const { cexPrice, dexPrice, totalFee, amountIn, amountOut } =
-        await this.priceService.getPrice(pair, INPUT);
-      console.timeEnd(`[binanceToDEX] getPrice time ${currentDate.getTime()}`);
+        await this.priceService.getPriceByReserve(pair, TOKEN_B_INPUT);
+      console.timeEnd(`[DEXToBinance] getPrice time ${currentDate.getTime()}`);
 
-      const profit = (dexPrice - cexPrice) * INPUT;
-      const profitRate = dexPrice / cexPrice - 1;
+      const profit = (cexPrice - dexPrice) * TOKEN_B_INPUT;
+      const profitRate = cexPrice / dexPrice - 1;
 
       console.log(
-        `[BinanceToDEX] profit: ${profit}, cost: ${totalFee}, profit - cost: ${profit - totalFee} profitRate: ${profitRate}`,
+        `[DEXToBinance] profit: ${profit}, cost: ${totalFee}, profit - cost: ${profit - totalFee} profitRate: ${profitRate}`,
       );
 
       const priceHistory = await this.priceHistoryRepository.save({
@@ -222,69 +228,72 @@ export class OrderService {
       if (profit < totalFee || this.orderLock) {
         return;
       }
-      this.orderLock = true;
-
-      const binanceAccountInfo =
-        await this.binanceClientService.client.userAsset();
-      const cexBalance = binanceAccountInfo.find(
-        (balance) =>
-          balance.asset === pair.token1.symbol ||
-          balance.asset === pair.token1.ex_symbol,
-      ).free;
-
-      const tokenContract = this.tokenContractService.getContract(
-        pair.token1.address,
-      );
-      const dexBalance = formatUnits(
-        (await this.tokenContractService.balance(tokenContract)).toString(),
-        pair.token1.decimals,
-      );
-
-      // CEX Order
-      const orderResult = await this.order(
-        `${pair.token0.ex_symbol}${pair.token1.ex_symbol}`,
-        INPUT,
-        cexPrice,
-      );
-
-      // DEX Swap
-      const swapResult = await this.biswapService.swapExactTokensForTokens(
-        amountIn,
-        amountOut,
-        [pair.token0.address, pair.token1.address],
-      );
-
-      const orderHistory = await this.orderHistoryRepository.save({
-        priceId: priceHistory.id,
-        pair: pair.name,
-        currentDate,
-        profit,
-        cost: totalFee,
-        orderId: orderResult.clientOrderId,
-        swapTxHash: swapResult.hash,
-      });
-
-      await this.sheetsService.appendRow({
-        date: currentDate,
-        pair: pair.name,
-        input: INPUT,
-        cex_price: cexPrice,
-        dex_price: dexPrice,
-        cost: totalFee,
-        cex_balance: cexBalance,
-        dex_balance: dexBalance,
-      });
-
-      swapResult.wait().then((result) => {
-        this.orderHistoryRepository.update(orderHistory.id, {
-          swapSuccess: true,
-        });
-      });
     } catch (err) {
-      console.log(err);
-    } finally {
-      this.orderLock = false;
+      console.error(err);
     }
+    //   this.orderLock = true;
+
+    //   const binanceAccountInfo =
+    //     await this.binanceClientService.client.userAsset();
+    //   const cexBalance = binanceAccountInfo.find(
+    //     (balance) =>
+    //       balance.asset === pair.token1.symbol ||
+    //       balance.asset === pair.token1.ex_symbol,
+    //   ).free;
+
+    //   const tokenContract = this.tokenContractService.getContract(
+    //     pair.token1.address,
+    //   );
+    //   const dexBalance = formatUnits(
+    //     (await this.tokenContractService.balance(tokenContract)).toString(),
+    //     pair.token1.decimals,
+    //   );
+
+    //   // CEX Order
+    //   const orderResult = await this.order(
+    //     `${pair.token0.ex_symbol}${pair.token1.ex_symbol}`,
+    //     INPUT,
+    //     cexPrice,
+    //   );
+
+    //   // DEX Swap
+    //   const swapResult = await this.biswapService.swapExactTokensForTokens(
+    //     amountIn,
+    //     amountOut,
+    //     [pair.token0.address, pair.token1.address],
+    //   );
+
+    //   const orderHistory = await this.orderHistoryRepository.save({
+    //     priceId: priceHistory.id,
+    //     pair: pair.name,
+    //     currentDate,
+    //     profit,
+    //     cost: totalFee,
+    //     orderId: orderResult.clientOrderId,
+    //     swapTxHash: swapResult.hash,
+    //   });
+
+    //   await this.sheetsService.appendRow({
+    //     date: currentDate,
+    //     pair: pair.name,
+    //     input: INPUT,
+    //     cex_price: cexPrice,
+    //     dex_price: dexPrice,
+    //     cost: totalFee,
+    //     cex_balance: cexBalance,
+    //     dex_balance: dexBalance,
+    //   });
+
+    //   swapResult.wait().then((result) => {
+    //     this.orderHistoryRepository.update(orderHistory.id, {
+    //       swapSuccess: true,
+    //     });
+    //   });
+    // } catch (err) {
+    //   console.log(err);
+    // } finally {
+    //   this.orderLock = false;
+    // }
   }
 
   private async order(
