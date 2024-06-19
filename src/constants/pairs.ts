@@ -1,7 +1,17 @@
-import { Pair } from 'src/models/pair.model';
-
-export const CEXPairs = ['NEAR/BNB', 'SAND/USDT', 'SAND/ETH', 'NEAR/USDT'];
-export const DEXPairs = ['NEAR/WBNB', 'SAND/USDT', 'SAND/ETH', 'NEAR/USDT'];
+export const CEXPairs = [
+  'NEAR/BNB',
+  'SAND/USDT',
+  'SAND/ETH',
+  'NEAR/USDT',
+  'MATIC/BNB',
+];
+export const DEXPairs = [
+  'NEAR/WBNB',
+  'SAND/USDT',
+  'SAND/ETH',
+  'NEAR/USDT',
+  'MATIC/BNB',
+];
 
 export const PairAddress = {
   'NEAR/WBNB': '0xe0E9FDd2F0BcdBcaF55661B6Fa1efc0Ce181504b',
@@ -11,7 +21,7 @@ export const PairCEXTradeFee = {
   'NEAR/BNB': 0,
 };
 
-export const Pairs: Pair[] = [
+export const Pairs = [
   {
     name: 'NEAR/BNB',
     address: '0xe0E9FDd2F0BcdBcaF55661B6Fa1efc0Ce181504b',
