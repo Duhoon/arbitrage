@@ -34,6 +34,7 @@ export class PriceService {
   async getPrice(pair: Pair, input: number): Promise<PriceDTO> {
     const currentTime = new Date();
 
+    const name = pair.getName();
     const address = pair.getAddress();
     const token0 = pair.getToken0();
     const token1 = pair.getToken1();
@@ -75,12 +76,14 @@ export class PriceService {
       };
     } catch (err) {
       this.logger.error(err.message, err.trace);
+      throw err;
     }
   }
 
   async getPriceByReserve(pair: Pair, input: number): Promise<PriceDTO> {
     const currentTime = new Date();
 
+    const name = pair.getName();
     const address = pair.getAddress();
     const token0 = pair.getToken0();
     const token1 = pair.getToken1();
@@ -121,6 +124,7 @@ export class PriceService {
       };
     } catch (err) {
       console.log(err);
+      throw err;
     }
   }
 
@@ -135,7 +139,8 @@ export class PriceService {
   async getCEXPriceByTicker(pair: Pair) {
     const symbol = pair.getBinanceSymbol();
 
-    const orderbook = await this.getCEXOrder(symbol);
+    const { price } = await this.getCEXOrderTicker(symbol);
+    return price;
   }
 
   async getCEXOrder(symbol: string): Promise<any> {
@@ -146,6 +151,17 @@ export class PriceService {
       return result;
     } catch (err) {
       console.log(err);
+      throw err;
+    }
+  }
+
+  async getCEXOrderTicker(symbol: string): Promise<any> {
+    try {
+      const result = await this.binanceService.client.symbolPriceTicker({
+        symbol,
+      });
+      return result;
+    } catch (err) {
       throw err;
     }
   }

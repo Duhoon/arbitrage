@@ -1,6 +1,9 @@
 import { Pair as IPair } from 'src/types/pair.model';
 import { Token } from './token';
 
+/**
+ * Pair 관련 데이터 클래스
+ */
 export class Pair implements IPair {
   readonly name: string;
   readonly address: string;
@@ -23,7 +26,7 @@ export class Pair implements IPair {
   }
 
   getBinanceSymbol() {
-    return this.name.split('/').slice(0, 2).join();
+    return this.name.split('/').slice(0, 2).join('');
   }
 
   getAddress() {

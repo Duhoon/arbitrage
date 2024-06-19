@@ -1,11 +1,11 @@
 import { Token as IToken } from 'src/types/pair.model';
 
 export class Token implements IToken {
-  name: string;
-  symbol: string;
-  ex_symbol: string;
-  decimals: number;
-  address: string;
+  readonly name: string;
+  readonly symbol: string;
+  readonly ex_symbol: string;
+  readonly decimals: number;
+  readonly address: string;
 
   constructor(_token: IToken) {
     this.name = _token.name;
@@ -17,6 +17,10 @@ export class Token implements IToken {
 
   getName() {
     return this.name;
+  }
+
+  getSymbol() {
+    return this.symbol;
   }
 
   getExSymbol() {

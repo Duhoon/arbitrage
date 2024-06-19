@@ -23,6 +23,7 @@ export class OrderService {
   /**
    * 페어 인덱스
    */
+  private pairs: Pair[];
   private pairIndex = 0; // ['NEAR/BNB', 'SAND/USDT', 'SAND/ETH', 'NEAR/USDT'];
   private orderLock = false;
 
@@ -45,21 +46,13 @@ export class OrderService {
     private readonly priceHistoryRepository: Repository<PriceHistory>,
     @InjectRepository(OrderHistory)
     private readonly orderHistoryRepository: Repository<OrderHistory>,
-  ) {}
-
-  test() {
-    try {
-      // this.order('NEARBNB', 1, 0.013700);
-      // this.withdraw('BNB', 0.04, 'BSC');
-      // this.withdraw('NEAR', 0.04, 'BSC');
-    } catch (err) {
-      console.log(err);
-    }
+  ) {
+    this.pairs = Pairs.map((pair) => new Pair(pair));
   }
 
   @Timeout(0)
   async initPair() {
-    const pair = Pairs[this.pairIndex];
+    const pair = this.pairs[this.pairIndex];
 
     const baseTokenContract = this.tokenContractService.getContract(
       pair.token0.address,
@@ -76,7 +69,10 @@ export class OrderService {
         routerAddress,
       );
 
-      this.logger.log(`[initPair] Allowance to pair: ${allowanceToRouter}`);
+      this.logger.log(
+        `[initPair] Allowance to pair: ${allowanceToRouter}`,
+        'initPair',
+      );
 
       if (allowanceToRouter <= 0) {
         this.logger.log(`[initPair] Infinite Approve to Pair for ${pair}`);
@@ -91,6 +87,7 @@ export class OrderService {
         );
         this.logger.log(
           `[initPair] Allowance to Router after Approve: ${allowanceToRouter}`,
+          'initPair',
         );
       }
     }
@@ -109,7 +106,7 @@ export class OrderService {
 
   async binanceToDEX() {
     const currentDate = new Date();
-    const pair = new Pair(Pairs[this.pairIndex]);
+    const pair = this.pairs[this.pairIndex];
 
     try {
       console.time(`[binanceToDEX] getPrice time ${currentDate.getTime()}`);
@@ -126,7 +123,7 @@ export class OrderService {
       );
 
       const priceHistory = await this.priceHistoryRepository.save({
-        pair: pair.name,
+        pair: pair.getName(),
         currentDate,
         input: INPUT,
         dexPrice,
@@ -137,6 +134,13 @@ export class OrderService {
       });
 
       if (profit < totalFee || this.orderLock) {
+        return;
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.log(
+          'this is not production. No make order',
+          'binanceToDEX',
+        );
         return;
       }
       this.orderLock = true;
@@ -207,7 +211,7 @@ export class OrderService {
   async DEXToBinance() {
     const currentDate = new Date();
     const pairObj = {
-      ...Pairs[this.pairIndex],
+      ...this.pairs[this.pairIndex],
     };
 
     const temp = pairObj.token0;
@@ -241,6 +245,13 @@ export class OrderService {
       });
 
       if (profit < totalFee || this.orderLock) {
+        return;
+      }
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.log(
+          'this is not production. No make order',
+          'DEXToBinance',
+        );
         return;
       }
     } catch (err) {
