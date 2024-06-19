@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { PriceService } from './price.service';
-import { TokenService } from './token.service';
 import { ContractModule } from 'src/contract/contract.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PriceHistory } from 'src/entities/priceHistory.entity';
@@ -21,7 +20,6 @@ import { LoggerService } from 'src/config/logger/logger.service';
   providers: [
     PriceService,
     TokenContractService,
-    TokenService,
     BinanceClientService,
     OrderService,
     ProviderService,

@@ -5,7 +5,6 @@ import { ProviderService } from 'src/config/provider';
 import { TokenContractService } from 'src/contract/tokenContract.service';
 import { Side, OrderType, TimeInForce } from '@binance/connector-typescript';
 import { BiswapService } from 'src/contract/biswap.service';
-import { TokenService } from './token.service';
 import { Interval, Timeout } from '@nestjs/schedule';
 import { PriceService } from './price.service';
 import { calculatePriceImpact } from 'src/utils/calculator';
@@ -17,6 +16,7 @@ import { INPUT, TOKEN_B_INPUT, TRADE_FEE_RATE } from 'src/constants/order';
 import { OrderHistory } from 'src/entities/orderHistory.entity';
 import { SheetsService } from 'src/periphery/sheets.service';
 import { LoggerService } from 'src/config/logger/logger.service';
+import { Pair } from './pair';
 
 @Injectable()
 export class OrderService {
@@ -33,8 +33,6 @@ export class OrderService {
     private readonly priceService: PriceService,
     @Inject(ProviderService)
     private readonly providerService: ProviderService,
-    @Inject(TokenService)
-    private readonly tokenService: TokenService,
     @Inject(BinanceClientService)
     private readonly binanceClientService: BinanceClientService,
     @Inject(TokenContractService)
@@ -111,7 +109,7 @@ export class OrderService {
 
   async binanceToDEX() {
     const currentDate = new Date();
-    const pair = Pairs[this.pairIndex];
+    const pair = new Pair(Pairs[this.pairIndex]);
 
     try {
       console.time(`[binanceToDEX] getPrice time ${currentDate.getTime()}`);
@@ -123,7 +121,7 @@ export class OrderService {
       const profitRate = dexPrice / cexPrice - 1;
 
       this.logger.log(
-        `${pair.name} profit: ${profit}, cost: ${totalFee}, profit - cost: ${profit - totalFee} profitRate: ${profitRate}`,
+        `${pair.getName()} profit: ${profit}, cost: ${totalFee}, profit - cost: ${profit - totalFee} profitRate: ${profitRate}`,
         'binanceToDEX',
       );
 
@@ -208,13 +206,15 @@ export class OrderService {
 
   async DEXToBinance() {
     const currentDate = new Date();
-    const pair = {
+    const pairObj = {
       ...Pairs[this.pairIndex],
     };
 
-    const temp = pair.token0;
-    pair.token0 = pair.token1;
-    pair.token1 = temp;
+    const temp = pairObj.token0;
+    pairObj.token0 = pairObj.token1;
+    pairObj.token1 = temp;
+
+    const pair = new Pair(pairObj);
 
     try {
       console.time(`[DEXToBinance] getPrice time ${currentDate.getTime()}`);
@@ -361,116 +361,6 @@ export class OrderService {
   }
 
   async transferERC20(to: string, from: string, amount: number) {}
-
-  async calculateCostByBaseToken(pair: string, input: number): Promise<number> {
-    const [baseTokenInfo, quoteTokenInfo] =
-      this.tokenService.getTokensInfo(pair);
-    const pairContract = await this.biswapService.getPair(
-      pair,
-      baseTokenInfo.address,
-      quoteTokenInfo.address,
-    );
-
-    const inputWithDecimal = parseUnits(
-      input.toString(),
-      baseTokenInfo.decimals,
-    );
-    const [baseReserve, quoteReserve] =
-      await this.biswapService.getReserves(pairContract);
-
-    // 1. CEX 거래 수수료
-    const cexTradeFee = input * TRADE_FEE_RATE;
-    // 2. DEX swap 가스비
-    const [amountIn, amountOut] = await this.biswapService.getAmountOut(
-      inputWithDecimal,
-      baseTokenInfo.address,
-      quoteTokenInfo.address,
-    );
-
-    const swapGasFee =
-      await this.biswapService.estimateGasByswapExactTokensForTokens(
-        amountIn,
-        amountOut,
-        [baseTokenInfo.address, quoteTokenInfo.address],
-      );
-    console.log(formatUnits(swapGasFee, 18));
-
-    // 3. Price Impact
-    const costByPriceImpact = calculatePriceImpact(
-      amountIn,
-      amountOut,
-      baseReserve,
-      quoteReserve,
-      baseTokenInfo.decimals,
-      quoteTokenInfo.decimals,
-    );
-
-    console.log(
-      `[CostByBaseToken] CEX Trade Fee: ${cexTradeFee}, Swap Fee: ${Number(swapGasFee) / 10 ** baseTokenInfo.decimals}, PI : ${input * costByPriceImpact}`,
-    );
-
-    const totalFee =
-      cexTradeFee +
-      Number(swapGasFee) / 10 ** baseTokenInfo.decimals +
-      input * costByPriceImpact;
-
-    return totalFee;
-  }
-
-  async calculateCostByQuoteToken(
-    pair: string,
-    input: number,
-  ): Promise<number> {
-    const [baseTokenInfo, quoteTokenInfo] =
-      this.tokenService.getTokensInfo(pair);
-    const pairContract = await this.biswapService.getPair(
-      pair,
-      baseTokenInfo.address,
-      quoteTokenInfo.address,
-    );
-
-    const inputWithDecimal = parseUnits(
-      input.toString(),
-      quoteTokenInfo.decimals,
-    );
-    const [baseReserve, quoteReserve] =
-      await this.biswapService.getReserves(pairContract);
-
-    // 1. CEX 거래 수수료
-    const cexTradeFee = input * TRADE_FEE_RATE;
-    // 2. DEX swap 가스비
-    const [amountIn, amountOut] = await this.biswapService.getAmountIn(
-      inputWithDecimal,
-      baseTokenInfo.address,
-      quoteTokenInfo.address,
-    );
-
-    const swapGasFee =
-      await this.biswapService.estimateGasByswapTokensForExactTokens(
-        amountIn,
-        amountOut,
-        [baseTokenInfo.address, quoteTokenInfo.address],
-      );
-
-    console.log(formatUnits(swapGasFee, 18));
-
-    // 3. Price Impact
-    const costByPriceImpact = calculatePriceImpact(
-      amountOut,
-      amountIn,
-      baseReserve,
-      quoteReserve,
-      baseTokenInfo.decimals,
-      quoteTokenInfo.decimals,
-    );
-
-    const totalFee =
-      cexTradeFee +
-      Number(swapGasFee) / 10 ** baseTokenInfo.decimals +
-      Math.abs(input * costByPriceImpact);
-
-    return totalFee;
-  }
 
   async getCEXBalance(tokenSymbol: string) {}
 }

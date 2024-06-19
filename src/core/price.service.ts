@@ -1,22 +1,14 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { TokenService } from './token.service';
 import { BiswapService } from 'src/contract/biswap.service';
-import { baseTokens, quoteTokens } from 'src/constants/tokens';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PriceHistory } from 'src/entities/priceHistory.entity';
 import { Repository } from 'typeorm';
 import { BinanceClientService } from 'src/config/binanceClient';
-import { INPUT } from 'src/constants/order';
 import { parseUnits, formatUnits, formatEther } from 'ethers';
-import {
-  calculatePriceImpact,
-  getAmountOut,
-  getAmountIn,
-} from 'src/utils/calculator';
 import { TRADE_FEE_RATE } from 'src/constants/order';
 import { Timeout } from '@nestjs/schedule';
 import { PriceDTO } from 'src/types/price.model';
-import { Pair } from 'src/types/pair.model';
+import { Pair } from './pair';
 import { LoggerService } from 'src/config/logger/logger.service';
 
 @Injectable()
@@ -24,8 +16,6 @@ export class PriceService {
   private pairIndex = 0; // ['NEAR/BNB', 'SAND/USDT', 'SAND/ETH', 'NEAR/USDT'];
 
   constructor(
-    @Inject(TokenService)
-    private readonly tokenService: TokenService,
     @Inject(BiswapService)
     private readonly biswapService: BiswapService,
     @Inject(BinanceClientService)
@@ -41,11 +31,12 @@ export class PriceService {
     // console.log(`GetPriceByReserve Result: ${await this.getPriceByReserve()}`);
   }
 
-  async getPrice(
-    { name, address, token0, token1 }: Pair,
-    input: number,
-  ): Promise<PriceDTO> {
+  async getPrice(pair: Pair, input: number): Promise<PriceDTO> {
     const currentTime = new Date();
+
+    const address = pair.getAddress();
+    const token0 = pair.getToken0();
+    const token1 = pair.getToken1();
 
     try {
       const [amountIn, amountOut] = await this.biswapService.getAmountOut(
@@ -55,7 +46,7 @@ export class PriceService {
       );
 
       const dexPrice = Number(amountOut) / Number(amountIn);
-      const cexPrice = await this.getCEXPrice(name);
+      const cexPrice = await this.getCEXPrice(pair);
 
       // cost 계산
       const cexTradeFee = input * TRADE_FEE_RATE;
@@ -87,11 +78,12 @@ export class PriceService {
     }
   }
 
-  async getPriceByReserve(
-    { name, address, token0, token1 }: Pair,
-    input: number,
-  ): Promise<PriceDTO> {
+  async getPriceByReserve(pair: Pair, input: number): Promise<PriceDTO> {
     const currentTime = new Date();
+
+    const address = pair.getAddress();
+    const token0 = pair.getToken0();
+    const token1 = pair.getToken1();
 
     try {
       const [amountIn, amountOut] = await this.biswapService.getAmountOut(
@@ -101,7 +93,7 @@ export class PriceService {
       );
 
       const dexPrice = Number(amountIn) / Number(amountOut);
-      const cexPrice = await this.getCEXPrice(name);
+      const cexPrice = await this.getCEXPrice(pair);
 
       // cost 계산
       const cexTradeFee = input * TRADE_FEE_RATE;
@@ -132,37 +124,18 @@ export class PriceService {
     }
   }
 
-  async getCEXPrice(pair: string) {
-    const [baseTokenSymbol, quoteTokenSymbol] =
-      this.tokenService.getSymbol(pair);
+  async getCEXPrice(pair: Pair) {
+    const symbol = pair.getBinanceSymbol();
 
-    const orderbook = await this.getCEXOrder(
-      `${baseTokenSymbol}${quoteTokenSymbol}`,
-    );
+    const orderbook = await this.getCEXOrder(symbol);
     const marketStatus = orderbook.bids[0][0];
     return marketStatus;
   }
 
-  async getCEXPriceByTicker(pair: string) {
-    const [baseTokenSymbol, quoteTokenSymbol] =
-      this.tokenService.getSymbol(pair);
+  async getCEXPriceByTicker(pair: Pair) {
+    const symbol = pair.getBinanceSymbol();
 
-    const orderbook = await this.getCEXOrder(
-      `${baseTokenSymbol}${quoteTokenSymbol}`,
-    );
-  }
-
-  async getDEXPrice(pair: string, input: number): Promise<number> {
-    const [baseToken, quoteToken] = this.tokenService.getTokensInfo(pair);
-    const baseTokenAmount = parseUnits(input.toString(), baseToken.decimals);
-
-    const [amountIn, amountOut] = await this.biswapService.getAmountOut(
-      baseTokenAmount,
-      baseToken.address,
-      quoteToken.address,
-    );
-
-    return Number(amountOut) / Number(amountIn);
+    const orderbook = await this.getCEXOrder(symbol);
   }
 
   async getCEXOrder(symbol: string): Promise<any> {
