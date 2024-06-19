@@ -1,4 +1,4 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BinanceClientService } from 'src/config/binanceClient';
 import { ProviderService } from 'src/config/provider';
@@ -16,13 +16,19 @@ import { PairAddress, Pairs } from 'src/constants/pairs';
 import { INPUT, TOKEN_B_INPUT, TRADE_FEE_RATE } from 'src/constants/order';
 import { OrderHistory } from 'src/entities/orderHistory.entity';
 import { SheetsService } from 'src/periphery/sheets.service';
+import { LoggerService } from 'src/config/logger/logger.service';
 
 @Injectable()
 export class OrderService {
+  /**
+   * 페어 인덱스
+   */
   private pairIndex = 0; // ['NEAR/BNB', 'SAND/USDT', 'SAND/ETH', 'NEAR/USDT'];
   private orderLock = false;
 
   constructor(
+    @Inject(LoggerService)
+    private readonly logger: LoggerService,
     @Inject(PriceService)
     private readonly priceService: PriceService,
     @Inject(ProviderService)
@@ -60,7 +66,6 @@ export class OrderService {
     const baseTokenContract = this.tokenContractService.getContract(
       pair.token0.address,
     );
-
     const quoteTokenContract = this.tokenContractService.getContract(
       pair.token1.address,
     );
@@ -73,10 +78,10 @@ export class OrderService {
         routerAddress,
       );
 
-      console.log(`[initPair] Allowance to pair: ${allowanceToRouter}`);
+      this.logger.log(`[initPair] Allowance to pair: ${allowanceToRouter}`);
 
       if (allowanceToRouter <= 0) {
-        console.log(`[initPair] Infinite Approve to Pair for ${pair}`);
+        this.logger.log(`[initPair] Infinite Approve to Pair for ${pair}`);
         await this.tokenContractService.approve(
           tokenContract,
           routerAddress,
@@ -86,14 +91,24 @@ export class OrderService {
           tokenContract,
           routerAddress,
         );
-        console.log(
+        this.logger.log(
           `[initPair] Allowance to Router after Approve: ${allowanceToRouter}`,
         );
       }
     }
   }
 
-  @Interval(2_000)
+  @Timeout(2_000)
+  async runner() {
+    // const { cexPrice, dexPrice, totalFee, amountIn, amountOut } =
+    //   await this.priceService.getPrice(Pairs[this.pairIndex], INPUT);
+
+    await this.binanceToDEX();
+    // await this.DEXToBinance();
+
+    setTimeout(() => this.runner(), 2_000);
+  }
+
   async binanceToDEX() {
     const currentDate = new Date();
     const pair = Pairs[this.pairIndex];
@@ -107,8 +122,9 @@ export class OrderService {
       const profit = (dexPrice - cexPrice) * INPUT;
       const profitRate = dexPrice / cexPrice - 1;
 
-      console.log(
-        `[binanceToDEX] profit: ${profit}, cost: ${totalFee}, profit - cost: ${profit - totalFee} profitRate: ${profitRate}`,
+      this.logger.log(
+        `${pair.name} profit: ${profit}, cost: ${totalFee}, profit - cost: ${profit - totalFee} profitRate: ${profitRate}`,
+        'binanceToDEX',
       );
 
       const priceHistory = await this.priceHistoryRepository.save({
@@ -184,13 +200,12 @@ export class OrderService {
         });
       });
     } catch (err) {
-      console.error(err);
+      this.logger.error(err.message, err.trace);
     } finally {
       this.orderLock = false;
     }
   }
 
-  @Interval(2_000)
   async DEXToBinance() {
     const currentDate = new Date();
     const pair = {

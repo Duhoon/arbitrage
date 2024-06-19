@@ -11,6 +11,7 @@ import { TokenContractService } from 'src/contract/tokenContract.service';
 import { SignerService } from 'src/config/signer';
 import { OrderHistory } from 'src/entities/orderHistory.entity';
 import { SheetsService } from 'src/periphery/sheets.service';
+import { LoggerService } from 'src/config/logger/logger.service';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { SheetsService } from 'src/periphery/sheets.service';
     ProviderService,
     SignerService,
     SheetsService,
+    LoggerService,
   ],
 })
 export class CoreModule {}

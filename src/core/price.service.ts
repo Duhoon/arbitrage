@@ -17,6 +17,7 @@ import { TRADE_FEE_RATE } from 'src/constants/order';
 import { Timeout } from '@nestjs/schedule';
 import { PriceDTO } from 'src/types/price.model';
 import { Pair } from 'src/types/pair.model';
+import { LoggerService } from 'src/config/logger/logger.service';
 
 @Injectable()
 export class PriceService {
@@ -31,6 +32,7 @@ export class PriceService {
     private readonly binanceService: BinanceClientService,
     @InjectRepository(PriceHistory)
     private readonly priceHistoryRepository: Repository<PriceHistory>,
+    private readonly logger: LoggerService,
   ) {}
 
   @Timeout(1_000)
@@ -64,13 +66,14 @@ export class PriceService {
           [token0.address, token1.address],
         );
 
-      console.log(
-        `[caluclateCost] TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}`,
+      this.logger.log(
+        `TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}`,
+        'getPrice',
       );
       const totalFee = cexTradeFee + Number(formatUnits(swapGasFee, 9));
 
-      const logstr = `${currentTime.toISOString()} ${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
-      console.log(logstr);
+      const logstr = `${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
+      this.logger.log(logstr, 'getPrice');
 
       return {
         cexPrice,
@@ -80,7 +83,7 @@ export class PriceService {
         amountOut,
       };
     } catch (err) {
-      console.log(err);
+      this.logger.error(err.message, err.trace);
     }
   }
 
@@ -140,6 +143,15 @@ export class PriceService {
     return marketStatus;
   }
 
+  async getCEXPriceByTicker(pair: string) {
+    const [baseTokenSymbol, quoteTokenSymbol] =
+      this.tokenService.getSymbol(pair);
+
+    const orderbook = await this.getCEXOrder(
+      `${baseTokenSymbol}${quoteTokenSymbol}`,
+    );
+  }
+
   async getDEXPrice(pair: string, input: number): Promise<number> {
     const [baseToken, quoteToken] = this.tokenService.getTokensInfo(pair);
     const baseTokenAmount = parseUnits(input.toString(), baseToken.decimals);
@@ -149,7 +161,6 @@ export class PriceService {
       baseToken.address,
       quoteToken.address,
     );
-    console.log(amountOut);
 
     return Number(amountOut) / Number(amountIn);
   }
