@@ -7,7 +7,7 @@ import { SignerService } from 'src/infra/signer';
 @Injectable()
 export class TokenContractService {
   constructor(
-    @Inject('EtherProvider')
+    @Inject(EthersProviderToken)
     private readonly providerService: JsonRpcApiProvider,
     @Inject(SignerService)
     private readonly signerService: SignerService,
