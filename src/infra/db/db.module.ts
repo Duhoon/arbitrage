@@ -1,8 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { OrderHistory } from 'src/entities/orderHistory.entity';
-import { PriceHistory } from 'src/entities/priceHistory.entity';
+import { OrderHistory, PriceHistory } from 'src/infra/db/entities';
 
 @Module({
   imports: [
