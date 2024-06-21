@@ -11,4 +11,5 @@ export interface Token {
   ex_symbol: string;
   decimals: number;
   address: string;
+  binancePrice?: number;
 }

@@ -12,6 +12,8 @@ import * as BiswapPairABI from './abis/biswapPair.json';
 import { EthersSignerToken } from 'src/infra/signer';
 import { SLIPPAGE_TOLERANCE_RATE } from 'src/constants/order';
 import BigNumber from 'bignumber.js';
+import { Pair } from 'src/core/pair';
+import { Token } from 'src/core/token';
 
 @Injectable()
 export class BiswapService {
@@ -57,6 +59,23 @@ export class BiswapService {
     );
 
     return pairContract;
+  }
+
+  async buildPair(token0: Token, token1: Token): Promise<Pair> {
+    const name = `${token0.ex_symbol}/${token1.ex_symbol}`;
+    const address = await this.biswapFactory.getPair(
+      token0.address,
+      token1.address,
+    );
+
+    const pair = new Pair({
+      name,
+      address,
+      token0,
+      token1,
+    });
+
+    return pair;
   }
 
   async getReserves(pair: Contract) {

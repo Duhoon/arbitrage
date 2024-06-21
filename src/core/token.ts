@@ -6,6 +6,7 @@ export class Token implements IToken {
   readonly ex_symbol: string;
   readonly decimals: number;
   readonly address: string;
+  binancePrice: number;
 
   constructor(_token: IToken) {
     this.name = _token.name;
@@ -33,5 +34,9 @@ export class Token implements IToken {
 
   getAddress() {
     return this.address;
+  }
+
+  setBinancePrice(price: number) {
+    this.binancePrice = price;
   }
 }

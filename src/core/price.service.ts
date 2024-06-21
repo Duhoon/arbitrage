@@ -4,12 +4,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { PriceHistory } from 'src/infra/db/entities';
 import { Repository } from 'typeorm';
 import { BinanceClientService } from 'src/infra/binanceClient';
-import { parseUnits, formatUnits, formatEther } from 'ethers';
+import { parseUnits, formatUnits } from 'ethers';
 import { TRADE_FEE_RATE } from 'src/constants/order';
 import { Timeout } from '@nestjs/schedule';
 import { PriceDTO } from 'src/types/price.model';
 import { Pair } from './pair';
 import { LoggerService } from 'src/infra/logger/logger.service';
+import { Token } from './token';
 
 @Injectable()
 export class PriceService {
@@ -136,10 +137,18 @@ export class PriceService {
     return marketStatus;
   }
 
-  async getCEXPriceByTicker(pair: Pair) {
-    const symbol = pair.getBinanceSymbol();
-
+  async getUSDPricefromCEX(token: Token) {
+    const symbol = token.name + 'USDT';
     const { price } = await this.getCEXOrderTicker(symbol);
+
+    token.setBinancePrice(price);
+    return price;
+  }
+
+  async getCEXPriceByTicker(pair: Pair) {
+    const [baseToken] = pair.getBinanceSymbol();
+
+    const { price } = await this.getCEXOrderTicker(baseToken);
     return price;
   }
 
