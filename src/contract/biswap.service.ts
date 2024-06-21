@@ -3,12 +3,13 @@ import {
   Contract,
   ContractTransactionResponse,
   JsonRpcApiProvider,
+  Wallet,
 } from 'ethers';
 import { EthersProviderToken } from 'src/infra/provider';
 import * as BiswapRouterABI from './abis/biswapRouter.json';
 import * as BiswapFactoryABI from './abis/biswapFactory.json';
 import * as BiswapPairABI from './abis/biswapPair.json';
-import { SignerService } from 'src/infra/signer';
+import { EthersSignerToken } from 'src/infra/signer';
 import { SLIPPAGE_TOLERANCE_RATE } from 'src/constants/order';
 import BigNumber from 'bignumber.js';
 
@@ -22,8 +23,8 @@ export class BiswapService {
   constructor(
     @Inject(EthersProviderToken)
     private readonly ethersProvider: JsonRpcApiProvider,
-    @Inject(SignerService)
-    private readonly signerService: SignerService,
+    @Inject(EthersSignerToken)
+    private readonly wallet: Wallet,
   ) {
     this.biswapRouter = new Contract(
       '0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8',
@@ -70,15 +71,13 @@ export class BiswapService {
     amountOutMin: bigint,
     addresses: string[],
   ): Promise<null | ContractTransactionResponse> {
-    const routerWithSigner = this.biswapRouter.connect(
-      this.signerService.getWallet(),
-    ) as any;
+    const routerWithSigner = this.biswapRouter.connect(this.wallet) as any;
 
     const result = await routerWithSigner.swapExactTokensForTokens(
       amountIn,
       amountOutMin,
       addresses,
-      this.signerService.getWallet().address,
+      this.wallet.address,
       Date.now() + this.DEADLINE_LIMIT,
     );
 
@@ -90,15 +89,13 @@ export class BiswapService {
     amountOut: bigint,
     addresses: string[],
   ): Promise<null | ContractTransactionResponse> {
-    const routerWithSigner = this.biswapRouter.connect(
-      this.signerService.getWallet(),
-    ) as any;
+    const routerWithSigner = this.biswapRouter.connect(this.wallet) as any;
 
     const result = await routerWithSigner.swapTokensForExactTokens(
       amountOut,
       amountInMax,
       addresses,
-      this.signerService.getWallet().address,
+      this.wallet.address,
       Date.now() + this.DEADLINE_LIMIT,
     );
 
@@ -110,16 +107,14 @@ export class BiswapService {
     amountOut: bigint,
     addresses: string[],
   ): Promise<bigint> {
-    const routerWithWithSigner = this.biswapRouter.connect(
-      this.signerService.getWallet(),
-    ) as any;
+    const routerWithWithSigner = this.biswapRouter.connect(this.wallet) as any;
 
     const gasFee =
       await routerWithWithSigner.swapTokensForExactTokens.estimateGas(
         amountOut,
         amountIn,
         addresses,
-        this.signerService.getWallet().address,
+        this.wallet.address,
         Date.now() + this.DEADLINE_LIMIT / 1000,
       );
 
@@ -131,16 +126,14 @@ export class BiswapService {
     amountOut: bigint,
     addresses: string[],
   ): Promise<bigint> {
-    const routerWithWithSigner = this.biswapRouter.connect(
-      this.signerService.getWallet(),
-    ) as any;
+    const routerWithWithSigner = this.biswapRouter.connect(this.wallet) as any;
 
     const gasFee =
       await routerWithWithSigner.swapExactTokensForTokens.estimateGas(
         amountIn,
         amountOut,
         addresses,
-        this.signerService.getWallet().address,
+        this.wallet.address,
         Date.now() + this.DEADLINE_LIMIT / 1000,
       );
 

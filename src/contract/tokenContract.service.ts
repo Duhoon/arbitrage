@@ -1,16 +1,16 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { ethers, Contract, JsonRpcApiProvider } from 'ethers';
+import { ethers, Contract, JsonRpcApiProvider, Wallet } from 'ethers';
 import { EthersProviderToken } from 'src/infra/provider';
 import * as BEP20ABI from './abis/IERC20.json';
-import { SignerService } from 'src/infra/signer';
+import { EthersSignerToken } from 'src/infra/signer';
 
 @Injectable()
 export class TokenContractService {
   constructor(
     @Inject(EthersProviderToken)
     private readonly providerService: JsonRpcApiProvider,
-    @Inject(SignerService)
-    private readonly signerService: SignerService,
+    @Inject(EthersSignerToken)
+    private readonly wallet: Wallet,
   ) {}
 
   getContract(tokenAddress: string) {
@@ -22,16 +22,12 @@ export class TokenContractService {
   }
 
   async balance(tokenContract: Contract): Promise<bigint> {
-    const result = await tokenContract.balanceOf(
-      this.signerService.getWallet().address,
-    );
+    const result = await tokenContract.balanceOf(this.wallet.address);
     return result;
   }
 
   async approve(tokenContract: Contract, to: string, amount: bigint) {
-    const tokenContractWithSigner = tokenContract.connect(
-      this.signerService.getWallet(),
-    ) as any;
+    const tokenContractWithSigner = tokenContract.connect(this.wallet) as any;
 
     const result = await tokenContractWithSigner.approve(to, amount);
 

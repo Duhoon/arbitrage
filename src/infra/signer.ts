@@ -1,24 +1,12 @@
-import { Injectable, Inject } from '@nestjs/common';
+import { Injectable, Inject, Provider } from '@nestjs/common';
 import { ethers, Wallet, JsonRpcApiProvider } from 'ethers';
-import { EthersProviderToken } from './provider';
+import { EthersProvider, EthersProviderToken } from './provider';
 
-@Injectable()
-export class SignerService {
-  private wallet: Wallet;
-
-  constructor(
-    @Inject(EthersProviderToken)
-    private readonly provider: JsonRpcApiProvider,
-  ) {}
-
-  private setWallet() {
-    this.wallet = new Wallet(process.env.WALLET_SECRET, this.provider);
-  }
-
-  getWallet() {
-    if (!this.wallet) {
-      this.setWallet();
-    }
-    return this.wallet;
-  }
-}
+export const EthersSignerToken = 'EthersSigner';
+export const EthersSigner: Provider = {
+  provide: EthersSignerToken,
+  useFactory: (provider: JsonRpcApiProvider) => {
+    return new Wallet(process.env.WALLET_SECRET, provider);
+  },
+  inject: [EthersProviderToken],
+};

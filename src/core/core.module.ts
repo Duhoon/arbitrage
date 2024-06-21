@@ -6,7 +6,6 @@ import { PriceHistory } from 'src/entities/priceHistory.entity';
 import { BinanceClientService } from 'src/infra/binanceClient';
 import { OrderService } from './order.service';
 import { TokenContractService } from 'src/contract/tokenContract.service';
-import { SignerService } from 'src/infra/signer';
 import { OrderHistory } from 'src/entities/orderHistory.entity';
 import { SheetsService } from 'src/periphery/sheets.service';
 import { LoggerService } from 'src/infra/logger/logger.service';
@@ -23,7 +22,6 @@ import { InfraModule } from 'src/infra/infra.module';
     TokenContractService,
     BinanceClientService,
     OrderService,
-    SignerService,
     SheetsService,
     LoggerService,
   ],
