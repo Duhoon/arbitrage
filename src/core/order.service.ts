@@ -1,17 +1,16 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { BinanceClientService } from 'src/infra/binanceClient';
 import { TokenContractService } from 'src/contract/tokenContract.service';
 import { Side, OrderType, TimeInForce } from '@binance/connector-typescript';
 import { BiswapService } from 'src/contract/biswap.service';
-import { Interval, Timeout } from '@nestjs/schedule';
+import { Timeout } from '@nestjs/schedule';
 import { PriceService } from './price.service';
-import { calculatePriceImpact } from 'src/utils/calculator';
-import { parseUnits, MaxInt256, formatUnits } from 'ethers';
+import { MaxInt256, formatUnits } from 'ethers';
 import { OrderHistory, PriceHistory } from 'src/infra/db/entities';
 import { Repository } from 'typeorm';
-import { PairAddress, Pairs } from 'src/constants/pairs';
-import { INPUT, TOKEN_B_INPUT, TRADE_FEE_RATE } from 'src/constants/order';
+import { Pairs } from 'src/constants/pairs';
+import { INPUT, TOKEN_B_INPUT } from 'src/constants/order';
 import { SheetsService } from 'src/periphery/sheets.service';
 import { LoggerService } from 'src/infra/logger/logger.service';
 import { Pair } from './pair';
@@ -26,11 +25,9 @@ export class OrderService {
   private orderLock = false;
 
   constructor(
-    @Inject(LoggerService)
     private readonly logger: LoggerService,
     @Inject(PriceService)
     private readonly priceService: PriceService,
-    @Inject(BinanceClientService)
     private readonly binanceClientService: BinanceClientService,
     @Inject(TokenContractService)
     private readonly tokenContractService: TokenContractService,
@@ -100,7 +97,7 @@ export class OrderService {
   @Timeout(2_000)
   async runner() {
     // const { cexPrice, dexPrice, totalFee, amountIn, amountOut } =
-    //   await this.priceService.getPrice(Pairs[this.pairIndex], INPUT);
+    // await this.priceService.getPrice(Pairs[this.pairIndex], INPUT);
 
     await this.binanceToDEX();
     // await this.DEXToBinance();
