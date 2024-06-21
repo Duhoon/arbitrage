@@ -2,38 +2,28 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CoreModule } from './core/core.module';
-import { DBModule } from './config/db';
-import { ProviderService } from './config/provider';
+import { EthersProviderToken, buildProvider } from './infra/provider';
 import { ContractModule } from './contract/contract.module';
-import { BinanceClientService } from './config/binanceClient';
-import { SignerService } from './config/signer';
+import { BinanceClientService } from './infra/binanceClient';
+import { SignerService } from './infra/signer';
 import { PeripheryModule } from './periphery/periphery.module';
-import { LoggerService } from './config/logger/logger.service';
+import { LoggerService } from './infra/logger/logger.service';
+import { InfraModule } from './infra/infra.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
-    DBModule,
     ScheduleModule.forRoot(),
     CoreModule,
     PeripheryModule,
     ContractModule,
+    InfraModule,
   ],
   controllers: [],
-  providers: [
-    ProviderService,
-    SignerService,
-    BinanceClientService,
-    LoggerService,
-  ],
-  exports: [
-    BinanceClientService,
-    SignerService,
-    ProviderService,
-    LoggerService,
-  ],
+  providers: [LoggerService],
+  exports: [LoggerService],
 })
 export class AppModule {
   constructor() {}

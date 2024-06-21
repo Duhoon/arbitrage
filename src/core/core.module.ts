@@ -3,17 +3,18 @@ import { PriceService } from './price.service';
 import { ContractModule } from 'src/contract/contract.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PriceHistory } from 'src/entities/priceHistory.entity';
-import { BinanceClientService } from 'src/config/binanceClient';
+import { BinanceClientService } from 'src/infra/binanceClient';
 import { OrderService } from './order.service';
-import { ProviderService } from 'src/config/provider';
 import { TokenContractService } from 'src/contract/tokenContract.service';
-import { SignerService } from 'src/config/signer';
+import { SignerService } from 'src/infra/signer';
 import { OrderHistory } from 'src/entities/orderHistory.entity';
 import { SheetsService } from 'src/periphery/sheets.service';
-import { LoggerService } from 'src/config/logger/logger.service';
+import { LoggerService } from 'src/infra/logger/logger.service';
+import { InfraModule } from 'src/infra/infra.module';
 
 @Module({
   imports: [
+    InfraModule,
     ContractModule,
     TypeOrmModule.forFeature([PriceHistory, OrderHistory]),
   ],
@@ -22,7 +23,6 @@ import { LoggerService } from 'src/config/logger/logger.service';
     TokenContractService,
     BinanceClientService,
     OrderService,
-    ProviderService,
     SignerService,
     SheetsService,
     LoggerService,

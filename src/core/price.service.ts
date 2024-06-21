@@ -3,13 +3,13 @@ import { BiswapService } from 'src/contract/biswap.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PriceHistory } from 'src/entities/priceHistory.entity';
 import { Repository } from 'typeorm';
-import { BinanceClientService } from 'src/config/binanceClient';
+import { BinanceClientService } from 'src/infra/binanceClient';
 import { parseUnits, formatUnits, formatEther } from 'ethers';
 import { TRADE_FEE_RATE } from 'src/constants/order';
 import { Timeout } from '@nestjs/schedule';
 import { PriceDTO } from 'src/types/price.model';
 import { Pair } from './pair';
-import { LoggerService } from 'src/config/logger/logger.service';
+import { LoggerService } from 'src/infra/logger/logger.service';
 
 @Injectable()
 export class PriceService {

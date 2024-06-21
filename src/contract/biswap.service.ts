@@ -1,10 +1,14 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { Contract, ContractTransactionResponse } from 'ethers';
-import { ProviderService } from 'src/config/provider';
+import {
+  Contract,
+  ContractTransactionResponse,
+  JsonRpcApiProvider,
+} from 'ethers';
+import { EthersProviderToken } from 'src/infra/provider';
 import * as BiswapRouterABI from './abis/biswapRouter.json';
 import * as BiswapFactoryABI from './abis/biswapFactory.json';
 import * as BiswapPairABI from './abis/biswapPair.json';
-import { SignerService } from 'src/config/signer';
+import { SignerService } from 'src/infra/signer';
 import { SLIPPAGE_TOLERANCE_RATE } from 'src/constants/order';
 import BigNumber from 'bignumber.js';
 
@@ -16,21 +20,21 @@ export class BiswapService {
   biswapFactory: Contract;
 
   constructor(
-    @Inject(ProviderService)
-    private readonly providerService: ProviderService,
+    @Inject(EthersProviderToken)
+    private readonly ethersProvider: JsonRpcApiProvider,
     @Inject(SignerService)
     private readonly signerService: SignerService,
   ) {
     this.biswapRouter = new Contract(
       '0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8',
       BiswapRouterABI,
-      this.providerService.provider,
+      this.ethersProvider,
     );
 
     this.biswapFactory = new Contract(
       '0x858E3312ed3A876947EA49d572A7C42DE08af7EE',
       BiswapFactoryABI.abi,
-      this.providerService.provider,
+      this.ethersProvider,
     );
   }
 
@@ -48,7 +52,7 @@ export class BiswapService {
     const pairContract = new Contract(
       pairAddress,
       BiswapPairABI.abi,
-      this.providerService.provider,
+      this.ethersProvider,
     );
 
     return pairContract;

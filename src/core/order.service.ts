@@ -1,7 +1,6 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { BinanceClientService } from 'src/config/binanceClient';
-import { ProviderService } from 'src/config/provider';
+import { BinanceClientService } from 'src/infra/binanceClient';
 import { TokenContractService } from 'src/contract/tokenContract.service';
 import { Side, OrderType, TimeInForce } from '@binance/connector-typescript';
 import { BiswapService } from 'src/contract/biswap.service';
@@ -15,7 +14,7 @@ import { PairAddress, Pairs } from 'src/constants/pairs';
 import { INPUT, TOKEN_B_INPUT, TRADE_FEE_RATE } from 'src/constants/order';
 import { OrderHistory } from 'src/entities/orderHistory.entity';
 import { SheetsService } from 'src/periphery/sheets.service';
-import { LoggerService } from 'src/config/logger/logger.service';
+import { LoggerService } from 'src/infra/logger/logger.service';
 import { Pair } from './pair';
 
 @Injectable()
@@ -32,8 +31,6 @@ export class OrderService {
     private readonly logger: LoggerService,
     @Inject(PriceService)
     private readonly priceService: PriceService,
-    @Inject(ProviderService)
-    private readonly providerService: ProviderService,
     @Inject(BinanceClientService)
     private readonly binanceClientService: BinanceClientService,
     @Inject(TokenContractService)
@@ -52,8 +49,16 @@ export class OrderService {
 
   @Timeout(0)
   async initPair() {
+    // 사용 토큰 approve 확인
+
+    /**
+     * pair 가져오기
+     */
     const pair = this.pairs[this.pairIndex];
 
+    /**
+     * token contract 가져오기
+     */
     const baseTokenContract = this.tokenContractService.getContract(
       pair.token0.address,
     );
@@ -101,7 +106,7 @@ export class OrderService {
     await this.binanceToDEX();
     // await this.DEXToBinance();
 
-    setTimeout(() => this.runner(), 2_000);
+    setTimeout(() => this.runner(), 1_000);
   }
 
   async binanceToDEX() {
