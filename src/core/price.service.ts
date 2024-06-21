@@ -3,7 +3,7 @@ import { BiswapService } from 'src/contract/biswap.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PriceHistory } from 'src/infra/db/entities';
 import { Repository } from 'typeorm';
-import { BinanceClientService } from 'src/infra/binanceClient';
+import { BinanceClientService } from 'src/infra/binanceClient.service';
 import { parseUnits, formatUnits } from 'ethers';
 import { TRADE_FEE_RATE } from 'src/constants/order';
 import { Timeout } from '@nestjs/schedule';

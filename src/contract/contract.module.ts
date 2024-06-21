@@ -6,6 +6,6 @@ import { InfraModule } from 'src/infra/infra.module';
 @Module({
   imports: [InfraModule],
   providers: [BiswapService, TokenContractService],
-  exports: [BiswapService],
+  exports: [BiswapService, TokenContractService],
 })
 export class ContractModule {}

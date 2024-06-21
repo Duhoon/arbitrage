@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { BinanceClientService } from './binanceClient';
+import { BinanceClientService } from './binanceClient.service';
 import { EthersProvider } from './provider';
 import { EthersSigner } from './signer';
 import { DBModule } from './db/db.module';

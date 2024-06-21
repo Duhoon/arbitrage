@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { BinanceClientService } from 'src/infra/binanceClient';
+import { BinanceClientService } from 'src/infra/binanceClient.service';
 import { TokenContractService } from 'src/contract/tokenContract.service';
 import { Side, OrderType, TimeInForce } from '@binance/connector-typescript';
 import { BiswapService } from 'src/contract/biswap.service';
@@ -41,57 +41,6 @@ export class OrderService {
     private readonly orderHistoryRepository: Repository<OrderHistory>,
   ) {
     this.pairs = Pairs.map((pair) => new Pair(pair));
-  }
-
-  @Timeout(0)
-  async initPair() {
-    // 사용 토큰 approve 확인
-
-    /**
-     * pair 가져오기
-     */
-    const pair = this.pairs[this.pairIndex];
-
-    /**
-     * token contract 가져오기
-     */
-    const baseTokenContract = this.tokenContractService.getContract(
-      pair.token0.address,
-    );
-    const quoteTokenContract = this.tokenContractService.getContract(
-      pair.token1.address,
-    );
-
-    const routerAddress = await this.biswapService.biswapRouter.getAddress();
-
-    for (const tokenContract of [baseTokenContract, quoteTokenContract]) {
-      let allowanceToRouter = await this.tokenContractService.allowance(
-        tokenContract,
-        routerAddress,
-      );
-
-      this.logger.log(
-        `[initPair] Allowance to pair: ${allowanceToRouter}`,
-        'initPair',
-      );
-
-      if (allowanceToRouter <= 0) {
-        this.logger.log(`[initPair] Infinite Approve to Pair for ${pair}`);
-        await this.tokenContractService.approve(
-          tokenContract,
-          routerAddress,
-          MaxInt256,
-        );
-        allowanceToRouter = await this.tokenContractService.allowance(
-          tokenContract,
-          routerAddress,
-        );
-        this.logger.log(
-          `[initPair] Allowance to Router after Approve: ${allowanceToRouter}`,
-          'initPair',
-        );
-      }
-    }
   }
 
   @Timeout(2_000)

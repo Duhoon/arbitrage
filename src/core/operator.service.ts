@@ -6,6 +6,7 @@ import { tokens } from 'src/constants/tokens';
 import { Token } from './token';
 import { LoggerService } from 'src/infra/logger/logger.service';
 import { MaxInt256 } from 'ethers';
+import { Timeout } from '@nestjs/schedule';
 
 const TOKENS = tokens.chain_56;
 
@@ -20,55 +21,55 @@ export class OperatorService {
     private logger: LoggerService,
   ) {}
 
+  @Timeout(0)
   async initPair() {
     // 사용 토큰 approve 확인
+
+    /**
+     * @todo 추후 토큰은 파라미터화
+     */
     const token0 = new Token(TOKENS.NEAR);
     const token1 = new Token(TOKENS.WBNB);
     this.pairs = [await this.biswapService.buildPair(token0, token1)];
 
-    /**
-     * pair 가져오기
-     */
-    const pair = this.pairs[this.pairIndex];
-
-    /**
-     * token contract 가져오기
-     */
-    const baseTokenContract = this.tokenContractService.getContract(
-      pair.token0.address,
-    );
-    const quoteTokenContract = this.tokenContractService.getContract(
-      pair.token1.address,
-    );
-
-    const routerAddress = await this.biswapService.biswapRouter.getAddress();
-
-    for (const tokenContract of [baseTokenContract, quoteTokenContract]) {
-      let allowanceToRouter = await this.tokenContractService.allowance(
-        tokenContract,
-        routerAddress,
+    for (const pair of this.pairs) {
+      // token contract 가져오기
+      const baseTokenContract = this.tokenContractService.getContract(
+        pair.token0.address,
+      );
+      const quoteTokenContract = this.tokenContractService.getContract(
+        pair.token1.address,
       );
 
-      this.logger.log(
-        `[initPair] Allowance to pair: ${allowanceToRouter}`,
-        'initPair',
-      );
+      const routerAddress = await this.biswapService.biswapRouter.getAddress();
 
-      if (allowanceToRouter <= 0) {
-        this.logger.log(`[initPair] Infinite Approve to Pair for ${pair}`);
-        await this.tokenContractService.approve(
-          tokenContract,
-          routerAddress,
-          MaxInt256,
-        );
-        allowanceToRouter = await this.tokenContractService.allowance(
+      for (const tokenContract of [baseTokenContract, quoteTokenContract]) {
+        let allowanceToRouter = await this.tokenContractService.allowance(
           tokenContract,
           routerAddress,
         );
+
         this.logger.log(
-          `[initPair] Allowance to Router after Approve: ${allowanceToRouter}`,
+          `[initPair] Allowance to pair: ${allowanceToRouter}`,
           'initPair',
         );
+
+        if (allowanceToRouter <= 0) {
+          this.logger.log(`[initPair] Infinite Approve to Pair for ${pair}`);
+          await this.tokenContractService.approve(
+            tokenContract,
+            routerAddress,
+            MaxInt256,
+          );
+          allowanceToRouter = await this.tokenContractService.allowance(
+            tokenContract,
+            routerAddress,
+          );
+          this.logger.log(
+            `[initPair] Allowance to Router after Approve: ${allowanceToRouter}`,
+            'initPair',
+          );
+        }
       }
     }
   }
