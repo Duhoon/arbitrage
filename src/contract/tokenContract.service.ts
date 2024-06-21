@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ethers, Contract } from 'ethers';
 import { ProviderService } from 'src/config/provider';
-import * as BEP20ABI from './IERC20.json';
+import * as BEP20ABI from './abis/IERC20.json';
 import { SignerService } from 'src/config/signer';
 
 @Injectable()

@@ -1,10 +1,9 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { Contract, ContractTransactionResponse } from 'ethers';
 import { ProviderService } from 'src/config/provider';
-import { PairAddress } from 'src/constants/pairs';
-import * as BiswapRouterABI from './biswapRouter.json';
-import * as BiswapFactoryABI from './biswapFactory.json';
-import * as BiswapPairABI from './biswapPair.json';
+import * as BiswapRouterABI from './abis/biswapRouter.json';
+import * as BiswapFactoryABI from './abis/biswapFactory.json';
+import * as BiswapPairABI from './abis/biswapPair.json';
 import { SignerService } from 'src/config/signer';
 import { SLIPPAGE_TOLERANCE_RATE } from 'src/constants/order';
 import BigNumber from 'bignumber.js';
