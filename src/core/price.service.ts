@@ -32,7 +32,11 @@ export class PriceService {
     // console.log(`GetPriceByReserve Result: ${await this.getPriceByReserve()}`);
   }
 
-  async getPrice(pair: Pair, input: number): Promise<PriceDTO> {
+  async getPrice(
+    pair: Pair,
+    input: number,
+    reverse?: boolean,
+  ): Promise<PriceDTO> {
     const currentTime = new Date();
 
     const name = pair.getName();
@@ -50,7 +54,7 @@ export class PriceService {
     const cexPrice = token0.binancePrice / token1.binancePrice;
 
     // cost 계산
-    const cexTradeFee = input * TRADE_FEE_RATE;
+    const cexTradeFee = cexPrice * input * TRADE_FEE_RATE;
     const swapGasFee =
       await this.biswapService.estimateGasByswapExactTokensForTokens(
         amountIn,
@@ -64,8 +68,10 @@ export class PriceService {
     );
     const totalCost = cexTradeFee + Number(formatUnits(swapGasFee, 9));
 
-    const logstr = `${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
-    this.logger.log(logstr, 'getPrice');
+    this.logger.log(
+      `${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`,
+      'getPrice',
+    );
 
     const profit = (dexPrice - cexPrice) * TOKEN_A_INPUT;
     const profitRate = dexPrice / cexPrice - 1;

@@ -94,7 +94,7 @@ export class OperatorService {
       const pair = this.pairs[this.pairIndex];
       const { cexPrice, dexPrice, totalCost, amountIn, amountOut } =
         await this.priceService.getPrice(pair, TOKEN_A_INPUT);
-      await this.orderService.binanceToDEX(pair, {
+      await this.orderService.binanceToDEX(pair, TOKEN_A_INPUT, {
         cexPrice,
         dexPrice,
         totalCost,

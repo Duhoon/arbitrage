@@ -8,7 +8,6 @@ import { PriceService } from './price.service';
 import { MaxInt256, formatUnits } from 'ethers';
 import { OrderHistory, PriceHistory } from 'src/infra/db/entities';
 import { Repository } from 'typeorm';
-import { INPUT, TOKEN_A_INPUT, TOKEN_B_INPUT } from 'src/constants/order';
 import { SheetsService } from 'src/periphery/sheets.service';
 import { LoggerService } from 'src/infra/logger/logger.service';
 import { Pair } from './pair';
@@ -35,18 +34,13 @@ export class OrderService {
 
   async binanceToDEX(
     pair: Pair,
+    input: number,
     { cexPrice, dexPrice, totalCost, amountIn, amountOut }: OrderDTO,
   ) {
     const currentDate = new Date();
 
     try {
-      const profit = (dexPrice - cexPrice) * TOKEN_A_INPUT;
-      const profitRate = dexPrice / cexPrice - 1;
-
-      this.logger.log(
-        `${pair.getName()} profit: ${profit}, cost: ${totalCost}, operating profit: ${profit - totalCost} profitRate: ${profitRate}`,
-        'binanceToDEX',
-      );
+      const profit = (dexPrice - cexPrice) * input;
 
       if (profit < totalCost || this.orderLock) {
         return;
@@ -79,7 +73,7 @@ export class OrderService {
       // CEX Order
       const orderResult = await this.order(
         `${pair.token0.ex_symbol}${pair.token1.ex_symbol}`,
-        TOKEN_A_INPUT,
+        input,
         cexPrice,
       );
 
@@ -102,7 +96,7 @@ export class OrderService {
       await this.sheetsService.appendRow({
         date: currentDate,
         pair: pair.name,
-        input: TOKEN_A_INPUT,
+        input: input,
         cex_price: cexPrice,
         dex_price: dexPrice,
         cost: totalCost,
