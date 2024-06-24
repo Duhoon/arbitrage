@@ -8,6 +8,7 @@ import { SheetsService } from 'src/periphery/sheets.service';
 import { InfraModule } from 'src/infra/infra.module';
 import { OperatorService } from './operator.service';
 import { LoggerService } from 'src/infra/logger/logger.service';
+import { FeedService } from './feed.service';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { LoggerService } from 'src/infra/logger/logger.service';
     TypeOrmModule.forFeature([PriceHistory, OrderHistory]),
   ],
   providers: [
+    FeedService,
     PriceService,
     OrderService,
     OperatorService,

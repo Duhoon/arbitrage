@@ -7,18 +7,29 @@ import { Token } from './token';
 import { LoggerService } from 'src/infra/logger/logger.service';
 import { MaxInt256 } from 'ethers';
 import { Timeout } from '@nestjs/schedule';
+import { OrderService } from './order.service';
+import { PriceService } from './price.service';
+import { TOKEN_A_INPUT } from 'src/constants/order';
+import { InjectRepository } from '@nestjs/typeorm';
+import { PriceHistory } from 'src/infra/db/entities';
+import { Repository } from 'typeorm';
 
 const TOKENS = tokens.chain_56;
 
 @Injectable()
 export class OperatorService {
+  tokens: Token[];
   pairs: Pair[];
-  pairIndex: 0;
+  private pairIndex = 0; // ['NEAR/BNB', 'SAND/USDT', 'SAND/ETH', 'NEAR/USDT'];
 
   constructor(
+    private orderService: OrderService,
+    private priceService: PriceService,
     private tokenContractService: TokenContractService,
     private biswapService: BiswapService,
     private logger: LoggerService,
+    @InjectRepository(PriceHistory)
+    private priceHistoryRepository: Repository<PriceHistory>,
   ) {}
 
   @Timeout(0)
@@ -30,6 +41,7 @@ export class OperatorService {
      */
     const token0 = new Token(TOKENS.NEAR);
     const token1 = new Token(TOKENS.WBNB);
+    this.tokens = [token0, token1];
     this.pairs = [await this.biswapService.buildPair(token0, token1)];
 
     for (const pair of this.pairs) {
@@ -71,6 +83,28 @@ export class OperatorService {
           );
         }
       }
+    }
+  }
+
+  @Timeout(2_000)
+  async runner() {
+    const currentDate = new Date();
+
+    try {
+      const pair = this.pairs[this.pairIndex];
+      const { cexPrice, dexPrice, totalCost, amountIn, amountOut } =
+        await this.priceService.getPrice(pair, TOKEN_A_INPUT);
+      await this.orderService.binanceToDEX(pair, {
+        cexPrice,
+        dexPrice,
+        totalCost,
+        amountIn,
+        amountOut,
+      });
+    } catch (err) {
+      this.logger.error(err.message, err.trace, 'operator-runner');
+    } finally {
+      setTimeout(() => this.runner(), 1_000);
     }
   }
 }

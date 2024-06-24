@@ -4,7 +4,7 @@ import { google } from 'googleapis';
 import * as path from 'path';
 import * as fs from 'fs';
 import { Timeout } from '@nestjs/schedule';
-import { OrderHistoryDTO } from 'src/types/order.model';
+import { OrderHistoryDTO } from 'src/types/order.dto';
 
 const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 const TOKEN_PATH = path.join(__dirname, 'token.json');

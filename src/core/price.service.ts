@@ -5,9 +5,9 @@ import { PriceHistory } from 'src/infra/db/entities';
 import { Repository } from 'typeorm';
 import { BinanceClientService } from 'src/infra/binanceClient.service';
 import { parseUnits, formatUnits } from 'ethers';
-import { TRADE_FEE_RATE } from 'src/constants/order';
+import { TOKEN_A_INPUT, TRADE_FEE_RATE } from 'src/constants/order';
 import { Timeout } from '@nestjs/schedule';
-import { PriceDTO } from 'src/types/price.model';
+import { PriceDTO } from 'src/types/price.dto';
 import { Pair } from './pair';
 import { LoggerService } from 'src/infra/logger/logger.service';
 import { Token } from './token';
@@ -40,54 +40,67 @@ export class PriceService {
     const token0 = pair.getToken0();
     const token1 = pair.getToken1();
 
-    try {
-      const [amountIn, amountOut] = await this.biswapService.getAmountOut(
-        parseUnits(input.toString(), token0.decimals),
-        token0.address,
-        token1.address,
-      );
+    const [amountIn, amountOut] = await this.biswapService.getAmountOut(
+      parseUnits(input.toString(), token0.decimals),
+      token0.address,
+      token1.address,
+    );
 
-      const dexPrice = Number(amountOut) / Number(amountIn);
-      const cexPrice = await this.getCEXPrice(pair);
+    const dexPrice = Number(amountOut) / Number(amountIn);
+    const cexPrice = token0.binancePrice / token1.binancePrice;
 
-      // cost 계산
-      const cexTradeFee = input * TRADE_FEE_RATE;
-      const swapGasFee =
-        await this.biswapService.estimateGasByswapExactTokensForTokens(
-          amountIn,
-          amountOut,
-          [token0.address, token1.address],
-        );
-
-      this.logger.log(
-        `TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}`,
-        'getPrice',
-      );
-      const totalFee = cexTradeFee + Number(formatUnits(swapGasFee, 9));
-
-      const logstr = `${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
-      this.logger.log(logstr, 'getPrice');
-
-      return {
-        cexPrice,
-        dexPrice,
-        totalFee,
+    // cost 계산
+    const cexTradeFee = input * TRADE_FEE_RATE;
+    const swapGasFee =
+      await this.biswapService.estimateGasByswapExactTokensForTokens(
         amountIn,
         amountOut,
-      };
-    } catch (err) {
-      this.logger.error(err.message, err.trace);
-      throw err;
-    }
+        [token0.address, token1.address],
+      );
+
+    this.logger.log(
+      `TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}`,
+      'getPrice',
+    );
+    const totalCost = cexTradeFee + Number(formatUnits(swapGasFee, 9));
+
+    const logstr = `${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
+    this.logger.log(logstr, 'getPrice');
+
+    const profit = (dexPrice - cexPrice) * TOKEN_A_INPUT;
+    const profitRate = dexPrice / cexPrice - 1;
+
+    this.logger.log(
+      `${pair.getName()} profit: ${profit}, cost: ${totalCost}, operating profit: ${profit - totalCost} profitRate: ${profitRate}`,
+      'binanceToDEX',
+    );
+
+    await this.priceHistoryRepository.save({
+      pair: pair.name,
+      input: TOKEN_A_INPUT,
+      dexPrice,
+      cexPrice,
+      profit: profit,
+      cost: totalCost,
+      chance: profit > totalCost,
+    });
+
+    return {
+      cexPrice,
+      dexPrice,
+      totalCost,
+      amountIn,
+      amountOut,
+    };
   }
 
   async getPriceByReserve(pair: Pair, input: number): Promise<PriceDTO> {
     const currentTime = new Date();
 
-    const name = pair.getName();
-    const address = pair.getAddress();
-    const token0 = pair.getToken0();
-    const token1 = pair.getToken1();
+    const name = pair.name;
+    const address = pair.address;
+    const token0 = pair.token0;
+    const token1 = pair.token1;
 
     try {
       const [amountIn, amountOut] = await this.biswapService.getAmountOut(
@@ -97,7 +110,7 @@ export class PriceService {
       );
 
       const dexPrice = Number(amountIn) / Number(amountOut);
-      const cexPrice = await this.getCEXPrice(pair);
+      const cexPrice = token0.binancePrice / token1.binancePrice;
 
       // cost 계산
       const cexTradeFee = input * TRADE_FEE_RATE;
@@ -111,7 +124,7 @@ export class PriceService {
       console.log(
         `[caluclateCost] TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}`,
       );
-      const totalFee = cexTradeFee + Number(formatUnits(swapGasFee, 9));
+      const totalCost = cexTradeFee + Number(formatUnits(swapGasFee, 9));
 
       const logstr = `${currentTime.toISOString()} ${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice}`;
       console.log(logstr);
@@ -119,7 +132,7 @@ export class PriceService {
       return {
         cexPrice,
         dexPrice,
-        totalFee,
+        totalCost,
         amountIn,
         amountOut,
       };

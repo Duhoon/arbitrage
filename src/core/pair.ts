@@ -1,20 +1,19 @@
-import { Pair as IPair } from 'src/types/pair.model';
 import { Token } from './token';
 
 /**
  * Pair 관련 데이터 클래스
  */
-export class Pair implements IPair {
+export class Pair {
   readonly name: string;
   readonly address: string;
   readonly token0: Token;
   readonly token1: Token;
 
-  constructor(_pair: IPair) {
+  constructor(_pair: any) {
     this.name = _pair.name;
     this.address = _pair.address;
-    this.token0 = new Token(_pair.token0);
-    this.token1 = new Token(_pair.token1);
+    this.token0 = _pair.token0;
+    this.token1 = _pair.token1;
   }
 
   getName() {

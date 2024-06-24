@@ -1,4 +1,10 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+} from 'typeorm';
 
 @Entity()
 @Index(['currentDate', 'pair', 'chance'])
@@ -6,7 +12,7 @@ export class PriceHistory {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'current_date' })
+  @CreateDateColumn()
   currentDate: Date;
 
   @Column()

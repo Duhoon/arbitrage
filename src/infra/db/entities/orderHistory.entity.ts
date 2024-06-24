@@ -6,9 +6,6 @@ export class OrderHistory {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'price_id', unique: true })
-  priceId: number;
-
   @Column()
   currentDate: Date;
 
