@@ -9,7 +9,7 @@ import { MaxInt256 } from 'ethers';
 import { Timeout } from '@nestjs/schedule';
 import { OrderService } from './order.service';
 import { PriceService } from './price.service';
-import { TOKEN_A_INPUT } from 'src/constants/order';
+import { TOKEN_A_INPUT, TOKEN_B_INPUT } from 'src/constants/order';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PriceHistory } from 'src/infra/db/entities';
 import { Repository } from 'typeorm';
@@ -101,6 +101,8 @@ export class OperatorService {
         amountIn,
         amountOut,
       });
+
+      const price = await this.priceService.getPrice(pair, TOKEN_B_INPUT, true);
     } catch (err) {
       this.logger.error(err.message, err.trace, 'operator-runner');
     } finally {

@@ -9,7 +9,10 @@ export class BinanceClientService {
     this.setClient();
 
     this.client.userAsset().then((result) => {
-      console.log(result);
+      console.log('User balance:');
+      result.forEach((balance) =>
+        console.log(`${balance.asset} : ${balance.free}`),
+      );
     });
   }
 

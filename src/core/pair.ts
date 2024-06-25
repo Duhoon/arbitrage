@@ -16,27 +16,11 @@ export class Pair {
     this.token1 = _pair.token1;
   }
 
-  getName() {
-    return this.name;
-  }
-
   getSymbol() {
     return this.name.split('/').slice(0, 2);
   }
 
   getBinanceSymbol() {
     return this.name.split('/').slice(0, 2).join('');
-  }
-
-  getAddress() {
-    return this.address;
-  }
-
-  getToken0() {
-    return this.token0;
-  }
-
-  getToken1() {
-    return this.token1;
   }
 }
