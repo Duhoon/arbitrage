@@ -25,18 +25,24 @@ export class FeedService {
     const tokens = this.operatorService.tokens;
 
     const prices = (await this.binanceClientService.client.symbolPriceTicker({
-      symbols: JSON.stringify(tokens.map((token) => token.ex_symbol + 'USDT')),
+      symbols: JSON.stringify(
+        tokens
+          .filter((token) => token.ex_symbol !== 'USDT')
+          .map((token) => token.ex_symbol + 'USDT'),
+      ),
     })) as BinancePriceResponse[];
 
     prices.forEach((price) => {
       const tokenEntry = tokens.find(
         (token) => token.ex_symbol + 'USDT' === price.symbol,
       );
-      this.loggerService.debug(
-        `${tokenEntry.ex_symbol} / USDT ${price.price}`,
-        'feedTokenPriceByUSDT',
-      );
-      tokenEntry.setBinancePrice(Number(price.price));
+      if (tokenEntry) {
+        this.loggerService.debug(
+          `${tokenEntry.ex_symbol} / USDT ${price.price}`,
+          'feedTokenPriceByUSDT',
+        );
+        tokenEntry.setBinancePrice(Number(price.price));
+      }
     });
 
     this.loggerService.debug(`Feed Token Price end`, 'feedTokenPriceByUSDT');
