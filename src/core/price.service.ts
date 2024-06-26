@@ -10,10 +10,11 @@ import { PriceDTO } from 'src/types/price.dto';
 import { Pair } from './pair';
 import { LoggerService } from 'src/infra/logger/logger.service';
 import { Token } from './token';
+import { toPercentage } from 'src/utils/calculator';
 
 @Injectable()
 export class PriceService {
-  private pairIndex = 0; // ['NEAR/BNB', 'SAND/USDT', 'SAND/ETH', 'NEAR/USDT'];
+  private bnbPrice: number;
 
   constructor(
     @Inject(BiswapService)
@@ -26,8 +27,6 @@ export class PriceService {
   ) {}
 
   async getPrice(pair: Pair, reverse: boolean = false): Promise<PriceDTO> {
-    const currentTime = new Date();
-
     const name = pair.name;
     const address = pair.address;
 
@@ -62,34 +61,36 @@ export class PriceService {
     const cexPrice = pair.token0.binancePrice / pair.token1.binancePrice;
 
     // cost 계산
-    const cexTradeFee = cexPrice * pair.input * TRADE_FEE_RATE;
-    const swapGasFee = 0;
+    const cexTradeFee = pair.token0.binancePrice * pair.input * TRADE_FEE_RATE;
+    const swapGasFee = Number(formatUnits(300_000, 9)) * this.bnbPrice;
     // await this.biswapService.estimateGasByswapExactTokensForTokens(
     //   amountIn,
     //   amountOut,
     //   [tokenIn.address, tokenOut.address],
     // );
 
-    this.logger.log(
-      `TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}`,
+    const totalCost = cexTradeFee + swapGasFee;
+
+    this.logger.debug(
+      `cexTradeFee : ${cexTradeFee} GasFee : ${swapGasFee}`,
       'getPrice',
     );
-    const totalCost = cexTradeFee + Number(formatUnits(swapGasFee, 9));
 
     this.logger.log(
       `${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice} ${reverse ? 'reverse: true' : ''}`,
       'getPrice',
     );
 
-    const profit = !reverse
-      ? (dexPrice - cexPrice) * pair.input
-      : (cexPrice - dexPrice) * pair.input;
+    const profit =
+      (!reverse ? dexPrice - cexPrice : cexPrice - dexPrice) *
+      pair.token1.binancePrice *
+      pair.input;
     const profitRate = !reverse
       ? dexPrice / cexPrice - 1
       : cexPrice / dexPrice - 1;
 
     this.logger.log(
-      `${pair.name} profit: ${profit}, cost: ${totalCost}, operating profit: ${profit - totalCost} profitRate: ${profitRate}`,
+      `${pair.name} profit: ${profit}, cost: ${totalCost}, operating profit: ${profit - totalCost}, profitRate: ${toPercentage(profitRate)} %`,
       'binanceToDEX',
     );
 
@@ -156,5 +157,10 @@ export class PriceService {
     } catch (err) {
       throw err;
     }
+  }
+
+  setBNBPrice(price: number) {
+    this.logger.debug(`bnb Price : ${price}`, 'PriceService');
+    this.bnbPrice = price;
   }
 }

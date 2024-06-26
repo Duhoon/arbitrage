@@ -3,6 +3,7 @@ import { OperatorService } from './operator.service';
 import { BinanceClientService } from 'src/infra/binanceClient.service';
 import { LoggerService } from 'src/infra/logger/logger.service';
 import { Interval } from '@nestjs/schedule';
+import { PriceService } from './price.service';
 
 interface BinancePriceResponse {
   symbol: string;
@@ -17,6 +18,7 @@ export class FeedService {
   constructor(
     private readonly loggerService: LoggerService,
     private readonly operatorService: OperatorService,
+    private readonly priceService: PriceService,
     private readonly binanceClientService: BinanceClientService,
   ) {}
 
@@ -42,6 +44,9 @@ export class FeedService {
           'feedTokenPriceByUSDT',
         );
         tokenEntry.setBinancePrice(Number(price.price));
+        if (tokenEntry.ex_symbol === 'BNB') {
+          this.priceService.setBNBPrice(Number(price.price));
+        }
       }
     });
 

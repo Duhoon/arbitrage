@@ -49,3 +49,7 @@ export function calculatePriceImpact(
   ).div(BigNumber(formatUnits(reserveIn.toString(), decimalOut)));
   return Math.abs(actualPrice.div(idealPrice).toNumber() - 1);
 }
+
+export function toPercentage(value: number): number {
+  return Number((value * 100).toFixed(3));
+}
