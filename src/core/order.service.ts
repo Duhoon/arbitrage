@@ -32,19 +32,18 @@ export class OrderService {
 
   async binanceToDEX(
     pair: Pair,
-    input: number,
     { cexPrice, dexPrice, totalCost, amountIn, amountOut }: OrderDTO,
   ) {
     const currentDate = new Date();
 
     try {
-      const profit = (dexPrice - cexPrice) * input;
+      const profit = (dexPrice - cexPrice) * pair.input;
 
       if (profit < totalCost || this.orderLock) {
         return;
       }
       if (process.env.NODE_ENV !== 'production') {
-        this.logger.log(
+        this.logger.error(
           'this is not production. No make order',
           'binanceToDEX',
         );
@@ -52,6 +51,7 @@ export class OrderService {
       }
       this.orderLock = true;
 
+      // Balance Check
       const [cexBalance] = await this.getBalance(pair.token0, pair.token1);
       const tokenContract = this.tokenContractService.getContract(
         pair.token0.address,
@@ -61,15 +61,16 @@ export class OrderService {
         pair.token1.decimals,
       );
 
-      if (Number(cexBalance) < input || Number(dexBalance) < input) {
+      if (Number(cexBalance) < pair.input || Number(dexBalance) < pair.input) {
         return Error(`balance is not enough`);
       }
 
       // CEX Order
       const orderResult = await this.order(
         `${pair.token0.ex_symbol}${pair.token1.ex_symbol}`,
-        input,
+        pair.input,
         cexPrice,
+        Side.BUY,
       );
 
       // DEX Swap
@@ -91,7 +92,7 @@ export class OrderService {
       await this.sheetsService.appendRow({
         date: currentDate,
         pair: pair.name,
-        input: input,
+        input: pair.input,
         cex_price: cexPrice,
         dex_price: dexPrice,
         cost: totalCost,
@@ -114,13 +115,12 @@ export class OrderService {
 
   async DEXToBinance(
     pair: Pair,
-    input: number,
     { cexPrice, dexPrice, totalCost, amountIn, amountOut }: OrderDTO,
   ) {
     const currentDate = new Date();
 
     try {
-      const profit = (cexPrice - dexPrice) * input;
+      const profit = (cexPrice - dexPrice) * pair.input;
 
       if (profit < totalCost || this.orderLock) {
         return;
@@ -134,14 +134,7 @@ export class OrderService {
       }
       this.orderLock = true;
 
-      const binanceAccountInfo =
-        await this.binanceClientService.client.userAsset();
-      const cexBalance = binanceAccountInfo.find(
-        (balance) =>
-          balance.asset === pair.token1.symbol ||
-          balance.asset === pair.token1.ex_symbol,
-      ).free;
-
+      const [, cexBalance] = await this.getBalance(pair.token0, pair.token1);
       const tokenContract = this.tokenContractService.getContract(
         pair.token1.address,
       );
@@ -150,18 +143,23 @@ export class OrderService {
         pair.token1.decimals,
       );
 
+      if (Number(cexBalance) < pair.input || Number(dexBalance) < pair.input) {
+        return Error(`balance is not enough`);
+      }
+
       // CEX Order
       const orderResult = await this.order(
         `${pair.token0.ex_symbol}${pair.token1.ex_symbol}`,
-        input,
+        pair.input,
         cexPrice,
+        Side.SELL,
       );
 
       // DEX Swap
       const swapResult = await this.biswapService.swapExactTokensForTokens(
         amountIn,
         amountOut,
-        [pair.token0.address, pair.token1.address],
+        [pair.token1.address, pair.token0.address],
       );
 
       const orderHistory = await this.orderHistoryRepository.save({
@@ -176,7 +174,7 @@ export class OrderService {
       await this.sheetsService.appendRow({
         date: currentDate,
         pair: pair.name,
-        input: input,
+        input: pair.input,
         cex_price: cexPrice,
         dex_price: dexPrice,
         cost: totalCost,
@@ -200,12 +198,13 @@ export class OrderService {
     symbol: string,
     output: number,
     CEXPrice: number,
+    side: Side,
   ): Promise<any> {
     // input: 코인 개수 (decimal X)
     // CEXPrice: 해당 토큰 가격
     const result = await this.binanceClientService.client.newOrder(
       symbol,
-      Side.BUY,
+      side,
       OrderType.LIMIT,
       { quantity: output, price: CEXPrice, timeInForce: TimeInForce.GTC },
     );

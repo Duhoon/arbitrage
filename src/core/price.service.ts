@@ -25,11 +25,7 @@ export class PriceService {
     private readonly logger: LoggerService,
   ) {}
 
-  async getPrice(
-    pair: Pair,
-    input: number,
-    reverse: boolean = false,
-  ): Promise<PriceDTO> {
+  async getPrice(pair: Pair, reverse: boolean = false): Promise<PriceDTO> {
     const currentTime = new Date();
 
     const name = pair.name;
@@ -44,11 +40,20 @@ export class PriceService {
       tokenOut = pair.token0;
     }
 
-    const [amountIn, amountOut] = await this.biswapService.getAmountOut(
-      parseUnits(input.toString(), tokenIn.decimals),
-      tokenIn.address,
-      tokenOut.address,
-    );
+    let amountIn: bigint, amountOut: bigint;
+    if (!reverse) {
+      [amountIn, amountOut] = await this.biswapService.getAmountOut(
+        parseUnits(pair.input.toString(), tokenIn.decimals),
+        tokenIn.address,
+        tokenOut.address,
+      );
+    } else {
+      [amountIn, amountOut] = await this.biswapService.getAmountIn(
+        parseUnits(pair.input.toString(), tokenOut.decimals),
+        tokenIn.address,
+        tokenOut.address,
+      );
+    }
 
     const dexPrice = !reverse
       ? Number(amountOut) / Number(amountIn)
@@ -57,13 +62,13 @@ export class PriceService {
     const cexPrice = pair.token0.binancePrice / pair.token1.binancePrice;
 
     // cost 계산
-    const cexTradeFee = cexPrice * input * TRADE_FEE_RATE;
-    const swapGasFee =
-      await this.biswapService.estimateGasByswapExactTokensForTokens(
-        amountIn,
-        amountOut,
-        [tokenIn.address, tokenOut.address],
-      );
+    const cexTradeFee = cexPrice * pair.input * TRADE_FEE_RATE;
+    const swapGasFee = 0;
+    // await this.biswapService.estimateGasByswapExactTokensForTokens(
+    //   amountIn,
+    //   amountOut,
+    //   [tokenIn.address, tokenOut.address],
+    // );
 
     this.logger.log(
       `TradeFee: ${cexTradeFee}, SwapGasFee: ${swapGasFee}`,
@@ -77,8 +82,8 @@ export class PriceService {
     );
 
     const profit = !reverse
-      ? (dexPrice - cexPrice) * input
-      : (cexPrice - dexPrice) * input;
+      ? (dexPrice - cexPrice) * pair.input
+      : (cexPrice - dexPrice) * pair.input;
     const profitRate = !reverse
       ? dexPrice / cexPrice - 1
       : cexPrice / dexPrice - 1;
@@ -90,7 +95,7 @@ export class PriceService {
 
     await this.priceHistoryRepository.save({
       pair: pair.name,
-      input,
+      input: pair.input,
       dexPrice,
       cexPrice,
       profit: profit,

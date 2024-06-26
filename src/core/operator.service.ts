@@ -9,10 +9,6 @@ import { MaxInt256 } from 'ethers';
 import { Timeout } from '@nestjs/schedule';
 import { OrderService } from './order.service';
 import { PriceService } from './price.service';
-import { TOKEN_A_INPUT, TOKEN_B_INPUT } from 'src/constants/order';
-import { InjectRepository } from '@nestjs/typeorm';
-import { PriceHistory } from 'src/infra/db/entities';
-import { Repository } from 'typeorm';
 
 const TOKENS = tokens.chain_56;
 
@@ -20,7 +16,6 @@ const TOKENS = tokens.chain_56;
 export class OperatorService {
   tokens: Token[];
   pairs: Pair[];
-  private pairIndex = 0; // ['NEAR/BNB', 'SAND/USDT', 'SAND/ETH', 'NEAR/USDT'];
 
   constructor(
     private orderService: OrderService,
@@ -28,8 +23,6 @@ export class OperatorService {
     private tokenContractService: TokenContractService,
     private biswapService: BiswapService,
     private logger: LoggerService,
-    @InjectRepository(PriceHistory)
-    private priceHistoryRepository: Repository<PriceHistory>,
   ) {}
 
   @Timeout(0)
@@ -41,8 +34,13 @@ export class OperatorService {
      */
     const token0 = new Token(TOKENS.NEAR);
     const token1 = new Token(TOKENS.WBNB);
-    this.tokens = [token0, token1];
-    this.pairs = [await this.biswapService.buildPair(token0, token1)];
+    const token2 = new Token(TOKENS.SAND);
+    const token3 = new Token(TOKENS.USDT);
+    this.tokens = [token0, token1, token2, token3];
+    this.pairs = [
+      await this.biswapService.buildPair(token0, token1, 1),
+      await this.biswapService.buildPair(token2, token3, 10),
+    ];
 
     for (const pair of this.pairs) {
       // token contract 가져오기
@@ -62,7 +60,7 @@ export class OperatorService {
         );
 
         this.logger.log(
-          `[initPair] Allowance to pair: ${allowanceToRouter}`,
+          `[initPair] Allowance to pair ${await tokenContract.getAddress()}: ${allowanceToRouter}`,
           'initPair',
         );
 
@@ -88,21 +86,21 @@ export class OperatorService {
 
   @Timeout(2_000)
   async runner() {
-    const currentDate = new Date();
-
     try {
-      const pair = this.pairs[this.pairIndex];
-      const { cexPrice, dexPrice, totalCost, amountIn, amountOut } =
-        await this.priceService.getPrice(pair, TOKEN_A_INPUT);
-      await this.orderService.binanceToDEX(pair, TOKEN_A_INPUT, {
-        cexPrice,
-        dexPrice,
-        totalCost,
-        amountIn,
-        amountOut,
-      });
+      for (const pair of this.pairs) {
+        const { cexPrice, dexPrice, totalCost, amountIn, amountOut } =
+          await this.priceService.getPrice(pair);
+        await this.orderService.binanceToDEX(pair, {
+          cexPrice,
+          dexPrice,
+          totalCost,
+          amountIn,
+          amountOut,
+        });
 
-      const price = await this.priceService.getPrice(pair, TOKEN_B_INPUT, true);
+        const price = await this.priceService.getPrice(pair, true);
+        await this.orderService.DEXToBinance(pair, price);
+      }
     } catch (err) {
       this.logger.error(err.message, err.trace, 'operator-runner');
     } finally {

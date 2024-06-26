@@ -61,19 +61,22 @@ export class BiswapService {
     return pairContract;
   }
 
-  async buildPair(token0: Token, token1: Token): Promise<Pair> {
+  async buildPair(token0: Token, token1: Token, input: number): Promise<Pair> {
     const name = `${token0.ex_symbol}/${token1.ex_symbol}`;
     const address = await this.biswapFactory.getPair(
       token0.address,
       token1.address,
     );
 
-    const pair = new Pair({
-      name,
-      address,
-      token0,
-      token1,
-    });
+    const pair = new Pair(
+      {
+        name,
+        address,
+        token0,
+        token1,
+      },
+      input,
+    );
 
     return pair;
   }
@@ -181,7 +184,6 @@ export class BiswapService {
 
     return [
       amountIn,
-      // amountOut,
       BigInt(
         BigNumber(amountOut.toString())
           .times(1 - SLIPPAGE_TOLERANCE_RATE)
@@ -191,15 +193,22 @@ export class BiswapService {
   }
 
   async getAmountIn(
-    amountOut: number | string | bigint,
+    input: number | string | bigint,
     token0Address: string,
     token1Address: string,
   ): Promise<[bigint, bigint]> {
-    const amountIn = await this.biswapRouter.getAmountsIn(amountOut, [
+    const [amountIn, amountOut] = await this.biswapRouter.getAmountsIn(input, [
       token0Address,
       token1Address,
     ]);
 
-    return amountIn;
+    return [
+      BigInt(
+        BigNumber(amountIn.toString())
+          .times(1 + SLIPPAGE_TOLERANCE_RATE)
+          .toFixed(0),
+      ),
+      amountOut,
+    ];
   }
 }

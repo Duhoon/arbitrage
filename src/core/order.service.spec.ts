@@ -8,7 +8,7 @@ import { Pairs } from 'src/constants/pairs';
 
 describe('OrderService', () => {
   const operatorService = {
-    pairs: [new Pair(Pairs[0])],
+    pairs: [new Pair(Pairs[0], 1)],
   };
   let orderService: OrderService;
   beforeEach(async () => {

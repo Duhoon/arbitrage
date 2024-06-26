@@ -12,7 +12,11 @@ export class Token {
     this.ex_symbol = _token.ex_symbol;
     this.decimals = _token.decimals;
     this.address = _token.address;
-    this.binancePrice = -1;
+    if (_token.ex_symbol === 'USDT') {
+      this.binancePrice = 1;
+    } else {
+      this.binancePrice = -1;
+    }
   }
 
   setBinancePrice(price: number) {
