@@ -12,7 +12,7 @@ import { Pair } from './pair';
 import { OrderDTO } from './core.dto';
 import { Token } from './token';
 import { BiswapServiceToken } from 'src/constants/services';
-import { DEXService } from 'src/contract/dex.service';
+import { DEXV2Service } from 'src/contract/dexV2.service';
 
 @Injectable()
 export class OrderService {
@@ -23,7 +23,7 @@ export class OrderService {
     private readonly binanceClientService: BinanceClientService,
     private readonly tokenContractService: TokenContractService,
     @Inject(BiswapServiceToken)
-    private readonly biswapService: DEXService,
+    private readonly biswapService: DEXV2Service,
     private readonly sheetsService: SheetsService,
     @InjectRepository(OrderHistory)
     private readonly orderHistoryRepository: Repository<OrderHistory>,

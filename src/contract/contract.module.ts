@@ -1,13 +1,13 @@
-import { Module, Provider } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TokenContractService } from './tokenContract.service';
 import { InfraModule } from 'src/infra/infra.module';
 import {
   BiswapServiceToken,
   PancakeswapServiceToken,
 } from 'src/constants/services';
-import { DEXService } from './dex.service';
-import { EthersProvider, EthersProviderToken } from 'src/infra/provider';
-import { EthersSignerToken, EthersSigner } from 'src/infra/signer';
+import { DEXV2Service } from './dexV2.service';
+import { EthersProviderToken } from 'src/infra/provider';
+import { EthersSignerToken } from 'src/infra/signer';
 import { JsonRpcApiProvider, Wallet } from 'ethers';
 
 @Module({
@@ -19,7 +19,7 @@ import { JsonRpcApiProvider, Wallet } from 'ethers';
         ethersProvider: JsonRpcApiProvider,
         ethersSigner: Wallet,
       ) => {
-        return new DEXService(
+        return new DEXV2Service(
           ethersProvider,
           ethersSigner,
           '0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8',
@@ -34,7 +34,7 @@ import { JsonRpcApiProvider, Wallet } from 'ethers';
         ethersProvider: JsonRpcApiProvider,
         ethersSigner: Wallet,
       ) => {
-        return new DEXService(
+        return new DEXV2Service(
           ethersProvider,
           ethersSigner,
           '0x10ED43C718714eb63d5aA57B78B54704E256024E',

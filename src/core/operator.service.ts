@@ -9,7 +9,7 @@ import { MaxInt256 } from 'ethers';
 import { Timeout } from '@nestjs/schedule';
 import { OrderService } from './order.service';
 import { PriceService } from './price.service';
-import { DEXService } from 'src/contract/dex.service';
+import { DEXV2Service } from 'src/contract/dexV2.service';
 
 const TOKENS = tokens.chain_56;
 
@@ -23,7 +23,7 @@ export class OperatorService {
     private priceService: PriceService,
     private tokenContractService: TokenContractService,
     @Inject(BiswapServiceToken)
-    private biswapService: DEXService,
+    private biswapService: DEXV2Service,
     private logger: LoggerService,
   ) {}
 
@@ -34,14 +34,14 @@ export class OperatorService {
     /**
      * @todo 추후 토큰은 파라미터화
      */
-    const token0 = new Token(TOKENS.NEAR);
-    const token1 = new Token(TOKENS.WBNB);
-    const token2 = new Token(TOKENS.SAND);
-    const token3 = new Token(TOKENS.USDT);
-    this.tokens = [token0, token1, token2, token3];
+    const NEAR = new Token(TOKENS.NEAR);
+    const WBNB = new Token(TOKENS.WBNB);
+    const SAND = new Token(TOKENS.SAND);
+    const USDT = new Token(TOKENS.USDT);
+    this.tokens = [NEAR, WBNB, SAND, USDT];
     this.pairs = [
-      await this.biswapService.buildPair(token0, token1, 1),
-      await this.biswapService.buildPair(token2, token3, 100),
+      await this.biswapService.buildPair(NEAR, WBNB, 1),
+      await this.biswapService.buildPair(SAND, USDT, 100),
     ];
 
     for (const pair of this.pairs) {

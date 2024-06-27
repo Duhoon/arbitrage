@@ -11,7 +11,7 @@ import { LoggerService } from 'src/infra/logger/logger.service';
 import { Token } from './token';
 import { toPercentage } from 'src/utils/calculator';
 import { BiswapServiceToken } from 'src/constants/services';
-import { DEXService } from 'src/contract/dex.service';
+import { DEXV2Service } from 'src/contract/dexV2.service';
 
 @Injectable()
 export class PriceService {
@@ -19,7 +19,7 @@ export class PriceService {
 
   constructor(
     @Inject(BiswapServiceToken)
-    private readonly biswapService: DEXService,
+    private readonly biswapService: DEXV2Service,
     @Inject(BinanceClientService)
     private readonly binanceService: BinanceClientService,
     @InjectRepository(PriceHistory)
@@ -66,6 +66,7 @@ export class PriceService {
     const cexTradeFee =
       pair.getToken0().binancePrice * pair.input * TRADE_FEE_RATE;
     const swapGasFee = Number(formatUnits(300_000, 9)) * this.bnbPrice;
+    // 자산이 없을 시 아래 가스비 예측은 불가능
     // await this.biswapService.estimateGasByswapExactTokensForTokens(
     //   amountIn,
     //   amountOut,
@@ -94,7 +95,7 @@ export class PriceService {
 
     this.logger.log(
       `${pair.name} profit: $ ${profit}, cost: $ ${totalCost}, operating profit: $ ${profit - totalCost}, profitRate: ${toPercentage(profitRate)} %`,
-      'binanceToDEX',
+      'getPrice',
     );
 
     await this.priceHistoryRepository.save({

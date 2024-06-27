@@ -5,9 +5,9 @@ import {
   JsonRpcApiProvider,
   Wallet,
 } from 'ethers';
-import * as BiswapRouterABI from './abis/UniswapRouter.json';
-import * as BiswapFactoryABI from './abis/UniswapFactory.json';
-import * as BiswapPairABI from './abis/UniswapPair.json';
+import * as BiswapRouterABI from './abis/UniswapV2Router.json';
+import * as BiswapFactoryABI from './abis/UniswapV2Factory.json';
+import * as BiswapPairABI from './abis/UniswapV2Pair.json';
 import { Token } from 'src/core/token';
 import { Pair } from 'src/core/pair';
 import { EthersProviderToken } from 'src/infra/provider';
@@ -17,7 +17,7 @@ import { DEADLINE_LIMIT } from 'src/constants/contract';
 import { SLIPPAGE_TOLERANCE_RATE } from 'src/constants/order';
 
 @Injectable()
-export class DEXService {
+export class DEXV2Service {
   router: Contract;
   factory: Contract;
 
