@@ -23,6 +23,9 @@ export class FeedService {
   ) {}
 
   @Interval(1_000)
+  /**
+   * Feed Tokens Price & Binacne Price at PriceService
+   */
   async feedTokenPriceByUSDT() {
     const tokens = this.operatorService.tokens;
 

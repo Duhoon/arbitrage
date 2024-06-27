@@ -77,7 +77,7 @@ export class PriceService {
     );
 
     this.logger.log(
-      `${name} CEX Price: ${cexPrice}, DEX price: ${dexPrice} ${reverse ? 'reverse: true' : ''}`,
+      `${name} CEX Price: $ ${cexPrice}, DEX price: $ ${dexPrice} ${reverse ? 'reverse: true' : ''}`,
       'getPrice',
     );
 
@@ -90,7 +90,7 @@ export class PriceService {
       : cexPrice / dexPrice - 1;
 
     this.logger.log(
-      `${pair.name} profit: ${profit}, cost: ${totalCost}, operating profit: ${profit - totalCost}, profitRate: ${toPercentage(profitRate)} %`,
+      `${pair.name} profit: $ ${profit}, cost: $ ${totalCost}, operating profit: $ ${profit - totalCost}, profitRate: ${toPercentage(profitRate)} %`,
       'binanceToDEX',
     );
 
