@@ -1,6 +1,3 @@
-export const INPUT = 1;
-export const TOKEN_A_INPUT = 1;
-export const TOKEN_B_INPUT = 0.01;
 export const TARGET_RATE = 0.001;
 export const GAS_PRICE = 15; // gwei
 export const SWAP_COST = 0.0003; //
