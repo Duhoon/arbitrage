@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { TokenContractService } from 'src/contract/tokenContract.service';
-import { BiswapService } from 'src/contract/biswap.service';
+import { BiswapServiceToken } from 'src/constants/services';
 import { Pair } from './pair';
 import { tokens } from 'src/constants/tokens';
 import { Token } from './token';
@@ -9,6 +9,7 @@ import { MaxInt256 } from 'ethers';
 import { Timeout } from '@nestjs/schedule';
 import { OrderService } from './order.service';
 import { PriceService } from './price.service';
+import { DEXService } from 'src/contract/dex.service';
 
 const TOKENS = tokens.chain_56;
 
@@ -21,7 +22,8 @@ export class OperatorService {
     private orderService: OrderService,
     private priceService: PriceService,
     private tokenContractService: TokenContractService,
-    private biswapService: BiswapService,
+    @Inject(BiswapServiceToken)
+    private biswapService: DEXService,
     private logger: LoggerService,
   ) {}
 
@@ -39,7 +41,7 @@ export class OperatorService {
     this.tokens = [token0, token1, token2, token3];
     this.pairs = [
       await this.biswapService.buildPair(token0, token1, 1),
-      await this.biswapService.buildPair(token2, token3, 10),
+      await this.biswapService.buildPair(token2, token3, 100),
     ];
 
     for (const pair of this.pairs) {
@@ -51,7 +53,7 @@ export class OperatorService {
         pair.token1.address,
       );
 
-      const routerAddress = await this.biswapService.biswapRouter.getAddress();
+      const routerAddress = await this.biswapService.router.getAddress();
 
       for (const tokenContract of [baseTokenContract, quoteTokenContract]) {
         let allowanceToRouter = await this.tokenContractService.allowance(

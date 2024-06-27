@@ -5,22 +5,21 @@ import {
   JsonRpcApiProvider,
   Wallet,
 } from 'ethers';
-import { EthersProviderToken } from 'src/infra/provider';
-import * as BiswapRouterABI from './abis/biswapRouter.json';
-import * as BiswapFactoryABI from './abis/biswapFactory.json';
-import * as BiswapPairABI from './abis/biswapPair.json';
-import { EthersSignerToken } from 'src/infra/signer';
-import { SLIPPAGE_TOLERANCE_RATE } from 'src/constants/order';
-import BigNumber from 'bignumber.js';
-import { Pair } from 'src/core/pair';
+import * as BiswapRouterABI from './abis/UniswapRouter.json';
+import * as BiswapFactoryABI from './abis/UniswapFactory.json';
+import * as BiswapPairABI from './abis/UniswapPair.json';
 import { Token } from 'src/core/token';
+import { Pair } from 'src/core/pair';
+import { EthersProviderToken } from 'src/infra/provider';
+import { EthersSignerToken } from 'src/infra/signer';
+import BigNumber from 'bignumber.js';
+import { DEADLINE_LIMIT } from 'src/constants/contract';
+import { SLIPPAGE_TOLERANCE_RATE } from 'src/constants/order';
 
 @Injectable()
-export class BiswapService {
-  DEADLINE_LIMIT = 5 * 60 * 1000; // 5 minutes
-
-  biswapRouter: Contract;
-  biswapFactory: Contract;
+export class DEXService {
+  router: Contract;
+  factory: Contract;
 
   constructor(
     @Inject(EthersProviderToken)
@@ -28,13 +27,13 @@ export class BiswapService {
     @Inject(EthersSignerToken)
     private readonly wallet: Wallet,
   ) {
-    this.biswapRouter = new Contract(
+    this.router = new Contract(
       '0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8',
       BiswapRouterABI,
       this.ethersProvider,
     );
 
-    this.biswapFactory = new Contract(
+    this.factory = new Contract(
       '0x858E3312ed3A876947EA49d572A7C42DE08af7EE',
       BiswapFactoryABI.abi,
       this.ethersProvider,
@@ -48,7 +47,7 @@ export class BiswapService {
   ): Promise<Contract> {
     // let pairAddress: string = PairAddress[pair];
     // if (!pairAddress) {
-    //   pairAddress = await this.biswapFactory.getPair(tokenA, tokenB);
+    //   pairAddress = await this.factory.getPair(tokenA, tokenB);
     //   console.log(`[getPair] new pair: ${pairAddress}`);
     // }
 
@@ -63,10 +62,7 @@ export class BiswapService {
 
   async buildPair(token0: Token, token1: Token, input: number): Promise<Pair> {
     const name = `${token0.ex_symbol}/${token1.ex_symbol}`;
-    const address = await this.biswapFactory.getPair(
-      token0.address,
-      token1.address,
-    );
+    const address = await this.factory.getPair(token0.address, token1.address);
 
     const pair = new Pair(
       {
@@ -76,6 +72,7 @@ export class BiswapService {
         token1,
       },
       input,
+      [token0, token1],
     );
 
     return pair;
@@ -93,14 +90,14 @@ export class BiswapService {
     amountOutMin: bigint,
     addresses: string[],
   ): Promise<null | ContractTransactionResponse> {
-    const routerWithSigner = this.biswapRouter.connect(this.wallet) as any;
+    const routerWithSigner = this.router.connect(this.wallet) as any;
 
     const result = await routerWithSigner.swapExactTokensForTokens(
       amountIn,
       amountOutMin,
       addresses,
       this.wallet.address,
-      Date.now() + this.DEADLINE_LIMIT,
+      Date.now() + DEADLINE_LIMIT,
     );
 
     return result;
@@ -111,14 +108,14 @@ export class BiswapService {
     amountOut: bigint,
     addresses: string[],
   ): Promise<null | ContractTransactionResponse> {
-    const routerWithSigner = this.biswapRouter.connect(this.wallet) as any;
+    const routerWithSigner = this.router.connect(this.wallet) as any;
 
     const result = await routerWithSigner.swapTokensForExactTokens(
       amountOut,
       amountInMax,
       addresses,
       this.wallet.address,
-      Date.now() + this.DEADLINE_LIMIT,
+      Date.now() + DEADLINE_LIMIT,
     );
 
     return result;
@@ -129,7 +126,7 @@ export class BiswapService {
     amountOut: bigint,
     addresses: string[],
   ): Promise<bigint> {
-    const routerWithWithSigner = this.biswapRouter.connect(this.wallet) as any;
+    const routerWithWithSigner = this.router.connect(this.wallet) as any;
 
     const gasFee =
       await routerWithWithSigner.swapTokensForExactTokens.estimateGas(
@@ -137,7 +134,7 @@ export class BiswapService {
         amountIn,
         addresses,
         this.wallet.address,
-        Date.now() + this.DEADLINE_LIMIT / 1000,
+        Date.now() + DEADLINE_LIMIT / 1000,
       );
 
     return gasFee;
@@ -148,7 +145,7 @@ export class BiswapService {
     amountOut: bigint,
     addresses: string[],
   ): Promise<bigint> {
-    const routerWithWithSigner = this.biswapRouter.connect(this.wallet) as any;
+    const routerWithWithSigner = this.router.connect(this.wallet) as any;
 
     const gasFee =
       await routerWithWithSigner.swapExactTokensForTokens.estimateGas(
@@ -156,14 +153,14 @@ export class BiswapService {
         amountOut,
         addresses,
         this.wallet.address,
-        Date.now() + this.DEADLINE_LIMIT / 1000,
+        Date.now() + DEADLINE_LIMIT / 1000,
       );
 
     return gasFee;
   }
 
   async quote(amountA, tokenAReserve, tokenBReserve) {
-    const quote = await this.biswapRouter.quote(
+    const quote = await this.router.quote(
       amountA,
       tokenAReserve,
       tokenBReserve,
@@ -177,10 +174,10 @@ export class BiswapService {
     token0Address: string,
     token1Address: string,
   ): Promise<[bigint, bigint]> {
-    const [amountIn, amountOut] = (await this.biswapRouter.getAmountsOut(
-      input,
-      [token0Address, token1Address],
-    )) as [bigint, bigint];
+    const [amountIn, amountOut] = (await this.router.getAmountsOut(input, [
+      token0Address,
+      token1Address,
+    ])) as [bigint, bigint];
 
     return [
       amountIn,
@@ -197,7 +194,7 @@ export class BiswapService {
     token0Address: string,
     token1Address: string,
   ): Promise<[bigint, bigint]> {
-    const [amountIn, amountOut] = await this.biswapRouter.getAmountsIn(input, [
+    const [amountIn, amountOut] = await this.router.getAmountsIn(input, [
       token0Address,
       token1Address,
     ]);

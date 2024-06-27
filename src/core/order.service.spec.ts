@@ -5,10 +5,11 @@ import { OperatorService } from './operator.service';
 import { AppModule } from 'src/app.module';
 import { Pair } from './pair';
 import { Pairs } from 'src/constants/pairs';
+import { Token } from './token';
 
 describe('OrderService', () => {
   const operatorService = {
-    pairs: [new Pair(Pairs[0], 1)],
+    pairs: [new Pair(Pairs[0], 1, [new Token(Pairs[0].token0)])],
   };
   let orderService: OrderService;
   beforeEach(async () => {

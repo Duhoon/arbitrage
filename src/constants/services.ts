@@ -1,1 +1,5 @@
-export const EthersProvider = 'EthersProvider';
+// Contact Tokens
+export const BiswapServiceToken = 'BiswapService';
+
+// Infra Tokens
+export const EthersProviderToken = 'EthersProvider';

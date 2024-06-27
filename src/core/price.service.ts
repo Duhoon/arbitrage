@@ -1,5 +1,4 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { BiswapService } from 'src/contract/biswap.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PriceHistory } from 'src/infra/db/entities';
 import { Repository } from 'typeorm';
@@ -11,14 +10,16 @@ import { Pair } from './pair';
 import { LoggerService } from 'src/infra/logger/logger.service';
 import { Token } from './token';
 import { toPercentage } from 'src/utils/calculator';
+import { BiswapServiceToken } from 'src/constants/services';
+import { DEXService } from 'src/contract/dex.service';
 
 @Injectable()
 export class PriceService {
   private bnbPrice: number;
 
   constructor(
-    @Inject(BiswapService)
-    private readonly biswapService: BiswapService,
+    @Inject(BiswapServiceToken)
+    private readonly biswapService: DEXService,
     @Inject(BinanceClientService)
     private readonly binanceService: BinanceClientService,
     @InjectRepository(PriceHistory)

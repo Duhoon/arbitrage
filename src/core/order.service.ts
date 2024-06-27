@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { BinanceClientService } from 'src/infra/binanceClient.service';
 import { TokenContractService } from 'src/contract/tokenContract.service';
 import { Side, OrderType, TimeInForce } from '@binance/connector-typescript';
-import { BiswapService } from 'src/contract/biswap.service';
 import { formatUnits } from 'ethers';
 import { OrderHistory } from 'src/infra/db/entities';
 import { Repository } from 'typeorm';
@@ -12,6 +11,8 @@ import { LoggerService } from 'src/infra/logger/logger.service';
 import { Pair } from './pair';
 import { OrderDTO } from './core.dto';
 import { Token } from './token';
+import { BiswapServiceToken } from 'src/constants/services';
+import { DEXService } from 'src/contract/dex.service';
 
 @Injectable()
 export class OrderService {
@@ -20,11 +21,9 @@ export class OrderService {
   constructor(
     private readonly logger: LoggerService,
     private readonly binanceClientService: BinanceClientService,
-    @Inject(TokenContractService)
     private readonly tokenContractService: TokenContractService,
-    @Inject(BiswapService)
-    private readonly biswapService: BiswapService,
-    @Inject(SheetsService)
+    @Inject(BiswapServiceToken)
+    private readonly biswapService: DEXService,
     private readonly sheetsService: SheetsService,
     @InjectRepository(OrderHistory)
     private readonly orderHistoryRepository: Repository<OrderHistory>,
