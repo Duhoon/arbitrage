@@ -26,15 +26,17 @@ export class DEXService {
     private readonly ethersProvider: JsonRpcApiProvider,
     @Inject(EthersSignerToken)
     private readonly wallet: Wallet,
+    routerAddress: string,
+    factoryAddress: string,
   ) {
     this.router = new Contract(
-      '0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8',
+      routerAddress,
       BiswapRouterABI,
       this.ethersProvider,
     );
 
     this.factory = new Contract(
-      '0x858E3312ed3A876947EA49d572A7C42DE08af7EE',
+      factoryAddress,
       BiswapFactoryABI.abi,
       this.ethersProvider,
     );
