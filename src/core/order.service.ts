@@ -51,13 +51,16 @@ export class OrderService {
       this.orderLock = true;
 
       // Balance Check
-      const [cexBalance] = await this.getBalance(pair.token0, pair.token1);
+      const [cexBalance] = await this.getBalance(
+        pair.getToken0(),
+        pair.getToken1(),
+      );
       const tokenContract = this.tokenContractService.getContract(
-        pair.token0.address,
+        pair.getToken0().address,
       );
       const dexBalance = formatUnits(
         (await this.tokenContractService.balance(tokenContract)).toString(),
-        pair.token1.decimals,
+        pair.getToken1().decimals,
       );
 
       if (Number(cexBalance) < pair.input || Number(dexBalance) < pair.input) {
@@ -66,7 +69,7 @@ export class OrderService {
 
       // CEX Order
       const orderResult = await this.order(
-        `${pair.token0.ex_symbol}${pair.token1.ex_symbol}`,
+        `${pair.getToken0().ex_symbol}${pair.getToken1().ex_symbol}`,
         pair.input,
         cexPrice,
         Side.BUY,
@@ -76,7 +79,7 @@ export class OrderService {
       const swapResult = await this.biswapService.swapExactTokensForTokens(
         amountIn,
         amountOut,
-        [pair.token0.address, pair.token1.address],
+        pair.getPathForward(),
       );
 
       const orderHistory = await this.orderHistoryRepository.save({
@@ -133,13 +136,16 @@ export class OrderService {
       }
       this.orderLock = true;
 
-      const [, cexBalance] = await this.getBalance(pair.token0, pair.token1);
+      const [, cexBalance] = await this.getBalance(
+        pair.getToken0(),
+        pair.getToken1(),
+      );
       const tokenContract = this.tokenContractService.getContract(
-        pair.token1.address,
+        pair.getToken1().address,
       );
       const dexBalance = formatUnits(
         (await this.tokenContractService.balance(tokenContract)).toString(),
-        pair.token1.decimals,
+        pair.getToken1().decimals,
       );
 
       if (Number(cexBalance) < pair.input || Number(dexBalance) < pair.input) {
@@ -148,7 +154,7 @@ export class OrderService {
 
       // CEX Order
       const orderResult = await this.order(
-        `${pair.token0.ex_symbol}${pair.token1.ex_symbol}`,
+        `${pair.getToken0().ex_symbol}${pair.getToken1().ex_symbol}`,
         pair.input,
         cexPrice,
         Side.SELL,
@@ -158,7 +164,7 @@ export class OrderService {
       const swapResult = await this.biswapService.swapExactTokensForTokens(
         amountIn,
         amountOut,
-        [pair.token1.address, pair.token0.address],
+        pair.getPathReversed(),
       );
 
       const orderHistory = await this.orderHistoryRepository.save({

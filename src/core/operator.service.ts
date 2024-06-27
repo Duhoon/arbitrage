@@ -47,10 +47,10 @@ export class OperatorService {
     for (const pair of this.pairs) {
       // token contract 가져오기
       const baseTokenContract = this.tokenContractService.getContract(
-        pair.token0.address,
+        pair.getToken0().address,
       );
       const quoteTokenContract = this.tokenContractService.getContract(
-        pair.token1.address,
+        pair.getToken1().address,
       );
 
       const routerAddress = await this.biswapService.router.getAddress();

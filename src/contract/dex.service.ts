@@ -66,16 +66,7 @@ export class DEXService {
     const name = `${token0.ex_symbol}/${token1.ex_symbol}`;
     const address = await this.factory.getPair(token0.address, token1.address);
 
-    const pair = new Pair(
-      {
-        name,
-        address,
-        token0,
-        token1,
-      },
-      input,
-      [token0, token1],
-    );
+    const pair = new Pair(name, address, input, [token0, token1]);
 
     return pair;
   }

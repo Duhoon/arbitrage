@@ -6,10 +6,22 @@ import { AppModule } from 'src/app.module';
 import { Pair } from './pair';
 import { Pairs } from 'src/constants/pairs';
 import { Token } from './token';
+import { tokens } from 'src/constants/tokens';
+
+const TOKENS = tokens.chain_56;
 
 describe('OrderService', () => {
+  const NEAR = new Token(TOKENS.NEAR);
+  const BNB = new Token(TOKENS.WBNB);
+
   const operatorService = {
-    pairs: [new Pair(Pairs[0], 1, [new Token(Pairs[0].token0)])],
+    tokens: [NEAR, BNB],
+    pairs: [
+      new Pair('NEAR/BNB', '0xe0E9FDd2F0BcdBcaF55661B6Fa1efc0Ce181504b', 1, [
+        NEAR,
+        BNB,
+      ]),
+    ],
   };
   let orderService: OrderService;
   beforeEach(async () => {
@@ -28,8 +40,8 @@ describe('OrderService', () => {
     const pair = pairs[0];
 
     const [token0Balance, token1Balance] = await orderService.getBalance(
-      pair.token0,
-      pair.token1,
+      pair.getToken0(),
+      pair.getToken1(),
     );
 
     console.log(

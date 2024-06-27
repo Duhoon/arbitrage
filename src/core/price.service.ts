@@ -33,11 +33,11 @@ export class PriceService {
 
     let tokenIn: Token, tokenOut: Token;
     if (!reverse) {
-      tokenIn = pair.token0;
-      tokenOut = pair.token1;
+      tokenIn = pair.getToken0();
+      tokenOut = pair.getToken1();
     } else {
-      tokenIn = pair.token1;
-      tokenOut = pair.token0;
+      tokenIn = pair.getToken1();
+      tokenOut = pair.getToken0();
     }
 
     let amountIn: bigint, amountOut: bigint;
@@ -59,10 +59,12 @@ export class PriceService {
       ? Number(amountOut) / Number(amountIn)
       : Number(amountIn) / Number(amountOut);
 
-    const cexPrice = pair.token0.binancePrice / pair.token1.binancePrice;
+    const cexPrice =
+      pair.getToken0().binancePrice / pair.getToken1().binancePrice;
 
     // cost 계산
-    const cexTradeFee = pair.token0.binancePrice * pair.input * TRADE_FEE_RATE;
+    const cexTradeFee =
+      pair.getToken0().binancePrice * pair.input * TRADE_FEE_RATE;
     const swapGasFee = Number(formatUnits(300_000, 9)) * this.bnbPrice;
     // await this.biswapService.estimateGasByswapExactTokensForTokens(
     //   amountIn,
@@ -84,7 +86,7 @@ export class PriceService {
 
     const profit =
       (!reverse ? dexPrice - cexPrice : cexPrice - dexPrice) *
-      pair.token1.binancePrice *
+      pair.getToken1().binancePrice *
       pair.input;
     const profitRate = !reverse
       ? dexPrice / cexPrice - 1
