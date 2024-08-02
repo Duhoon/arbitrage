@@ -1,15 +1,15 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ethers, Contract, JsonRpcApiProvider, Wallet } from 'ethers';
-import { EthersProviderToken } from 'src/infra/provider';
+import { BinanceProviderToken } from 'src/infra/provider';
 import * as BEP20ABI from './abis/IERC20.json';
-import { EthersSignerToken } from 'src/infra/signer';
+import { BinanceSignerToken } from 'src/infra/signer';
 
 @Injectable()
 export class TokenContractService {
   constructor(
-    @Inject(EthersProviderToken)
+    @Inject(BinanceProviderToken)
     private readonly providerService: JsonRpcApiProvider,
-    @Inject(EthersSignerToken)
+    @Inject(BinanceSignerToken)
     private readonly wallet: Wallet,
   ) {}
 

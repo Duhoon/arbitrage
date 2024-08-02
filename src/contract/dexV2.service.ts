@@ -10,8 +10,8 @@ import * as BiswapFactoryABI from './abis/UniswapV2Factory.json';
 import * as BiswapPairABI from './abis/UniswapV2Pair.json';
 import { Token } from 'src/core/token';
 import { Pair } from 'src/core/pair';
-import { EthersProviderToken } from 'src/infra/provider';
-import { EthersSignerToken } from 'src/infra/signer';
+import { BinanceProviderToken } from 'src/infra/provider';
+import { BinanceSignerToken } from 'src/infra/signer';
 import BigNumber from 'bignumber.js';
 import { DEADLINE_LIMIT } from 'src/constants/contract';
 import { SLIPPAGE_TOLERANCE_RATE } from 'src/constants/order';
@@ -22,9 +22,9 @@ export class DEXV2Service {
   factory: Contract;
 
   constructor(
-    @Inject(EthersProviderToken)
+    @Inject(BinanceProviderToken)
     private readonly ethersProvider: JsonRpcApiProvider,
-    @Inject(EthersSignerToken)
+    @Inject(BinanceSignerToken)
     private readonly wallet: Wallet,
     routerAddress: string,
     factoryAddress: string,

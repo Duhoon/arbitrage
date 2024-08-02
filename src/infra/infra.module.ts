@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { BinanceClientService } from './binanceClient.service';
-import { EthersProvider } from './provider';
-import { EthersSigner } from './signer';
+import { BinanceProvider } from './provider';
+import { BinanceSigner } from './signer';
 import { DBModule } from './db/db.module';
 
 @Module({
   imports: [DBModule],
-  providers: [BinanceClientService, EthersProvider, EthersSigner],
-  exports: [BinanceClientService, EthersProvider, EthersSigner, DBModule],
+  providers: [BinanceClientService, BinanceProvider, BinanceSigner],
+  exports: [BinanceClientService, BinanceProvider, BinanceSigner, DBModule],
 })
 export class InfraModule {}
