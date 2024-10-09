@@ -46,10 +46,10 @@ export class OperatorService {
 
     for (const pair of this.pairs) {
       // token contract 가져오기
-      const baseTokenContract = this.tokenContractService.getContract(
+      const baseTokenContract = this.tokenContractService.createContract(
         pair.getToken0().address,
       );
-      const quoteTokenContract = this.tokenContractService.getContract(
+      const quoteTokenContract = this.tokenContractService.createContract(
         pair.getToken1().address,
       );
 

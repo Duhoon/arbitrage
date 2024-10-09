@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { OperatorService } from './operator.service';
-import { BinanceClientService } from 'src/infra/binanceClient.service';
 import { LoggerService } from 'src/infra/logger/logger.service';
 import { Interval } from '@nestjs/schedule';
 import { PriceService } from './price.service';
+import { Spot } from '@binance/connector-typescript';
+import { BinanceSpotClient } from 'src/infra/infra.module';
 
 interface BinancePriceResponse {
   symbol: string;
@@ -19,7 +20,8 @@ export class FeedService {
     private readonly loggerService: LoggerService,
     private readonly operatorService: OperatorService,
     private readonly priceService: PriceService,
-    private readonly binanceClientService: BinanceClientService,
+    @Inject(BinanceSpotClient)
+    private readonly binanceClientService: Spot,
   ) {}
 
   @Interval(1_000)
@@ -29,7 +31,7 @@ export class FeedService {
   async feedTokenPriceByUSDT() {
     const tokens = this.operatorService.tokens;
 
-    const prices = (await this.binanceClientService.client.symbolPriceTicker({
+    const prices = (await this.binanceClientService.symbolPriceTicker({
       symbols: JSON.stringify(
         tokens
           .filter((token) => token.ex_symbol !== 'USDT')

@@ -2,7 +2,6 @@ import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PriceHistory } from 'src/infra/db/entities';
 import { Repository } from 'typeorm';
-import { BinanceClientService } from 'src/infra/binanceClient.service';
 import { parseUnits, formatUnits } from 'ethers';
 import { TRADE_FEE_RATE } from 'src/constants/order';
 import { PriceDTO } from 'src/types/price.dto';
@@ -12,6 +11,8 @@ import { Token } from './token';
 import { toPercentage } from 'src/utils/calculator';
 import { BiswapServiceToken } from 'src/constants/services';
 import { DEXV2Service } from 'src/contract/dexV2.service';
+import { BinanceSpotClient } from 'src/infra/infra.module';
+import { Spot } from '@binance/connector-typescript';
 
 @Injectable()
 export class PriceService {
@@ -20,8 +21,8 @@ export class PriceService {
   constructor(
     @Inject(BiswapServiceToken)
     private readonly biswapService: DEXV2Service,
-    @Inject(BinanceClientService)
-    private readonly binanceService: BinanceClientService,
+    @Inject(BinanceSpotClient)
+    private readonly binanceService: Spot,
     @InjectRepository(PriceHistory)
     private readonly priceHistoryRepository: Repository<PriceHistory>,
     private readonly logger: LoggerService,
@@ -142,7 +143,7 @@ export class PriceService {
 
   async getCEXOrder(symbol: string): Promise<any> {
     try {
-      const result = await this.binanceService.client.orderBook(symbol, {
+      const result = await this.binanceService.orderBook(symbol, {
         limit: 5,
       });
       return result;
@@ -154,7 +155,7 @@ export class PriceService {
 
   async getCEXOrderTicker(symbol: string): Promise<any> {
     try {
-      const result = await this.binanceService.client.symbolPriceTicker({
+      const result = await this.binanceService.symbolPriceTicker({
         symbol,
       });
       return result;

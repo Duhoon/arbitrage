@@ -13,7 +13,7 @@ export class TokenContractService {
     private readonly wallet: Wallet,
   ) {}
 
-  getContract(tokenAddress: string) {
+  createContract(tokenAddress: string) {
     return new ethers.Contract(
       tokenAddress,
       BEP20ABI.abi,

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Spot } from '@binance/connector-typescript';
 
 @Injectable()
-export class BinanceClientService {
+export class BinanceClient {
   client: Spot;
 
   constructor() {

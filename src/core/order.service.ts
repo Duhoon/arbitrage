@@ -1,8 +1,12 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { BinanceClientService } from 'src/infra/binanceClient.service';
 import { TokenContractService } from 'src/contract/tokenContract.service';
-import { Side, OrderType, TimeInForce } from '@binance/connector-typescript';
+import {
+  Side,
+  OrderType,
+  TimeInForce,
+  Spot,
+} from '@binance/connector-typescript';
 import { formatUnits } from 'ethers';
 import { OrderHistory } from 'src/infra/db/entities';
 import { Repository } from 'typeorm';
@@ -13,6 +17,7 @@ import { OrderDTO } from './core.dto';
 import { Token } from './token';
 import { BiswapServiceToken } from 'src/constants/services';
 import { DEXV2Service } from 'src/contract/dexV2.service';
+import { BinanceSpotClient } from 'src/infra/infra.module';
 
 @Injectable()
 export class OrderService {
@@ -20,7 +25,8 @@ export class OrderService {
 
   constructor(
     private readonly logger: LoggerService,
-    private readonly binanceClientService: BinanceClientService,
+    @Inject(BinanceSpotClient)
+    private readonly binanceClientService: Spot,
     private readonly tokenContractService: TokenContractService,
     @Inject(BiswapServiceToken)
     private readonly biswapService: DEXV2Service,
@@ -55,7 +61,7 @@ export class OrderService {
         pair.getToken0(),
         pair.getToken1(),
       );
-      const tokenContract = this.tokenContractService.getContract(
+      const tokenContract = this.tokenContractService.createContract(
         pair.getToken0().address,
       );
       const dexBalance = formatUnits(
@@ -140,7 +146,7 @@ export class OrderService {
         pair.getToken0(),
         pair.getToken1(),
       );
-      const tokenContract = this.tokenContractService.getContract(
+      const tokenContract = this.tokenContractService.createContract(
         pair.getToken1().address,
       );
       const dexBalance = formatUnits(
@@ -207,7 +213,7 @@ export class OrderService {
   ): Promise<any> {
     // input: 코인 개수 (decimal X)
     // CEXPrice: 해당 토큰 가격
-    const result = await this.binanceClientService.client.newOrder(
+    const result = await this.binanceClientService.newOrder(
       symbol,
       side,
       OrderType.LIMIT,
@@ -223,7 +229,7 @@ export class OrderService {
     amount: number,
     network: string,
   ): Promise<any> {
-    const result = await this.binanceClientService.client.withdraw(
+    const result = await this.binanceClientService.withdraw(
       token,
       process.env.WALLET_ADDRESS,
       amount,
@@ -236,11 +242,11 @@ export class OrderService {
   }
 
   private async deposit(token: string, to: string, amount: number) {
-    const tokenContract = this.tokenContractService.getContract(token);
+    const tokenContract = this.tokenContractService.createContract(token);
   }
 
   async cancelOrder(pair: string, orderId: number): Promise<any> {
-    const result = await this.binanceClientService.client.cancelOrder(pair, {
+    const result = await this.binanceClientService.cancelOrder(pair, {
       orderId,
     });
 
@@ -252,7 +258,7 @@ export class OrderService {
   async transferERC20(to: string, from: string, amount: number) {}
 
   async getBalance(tokenIn: Token, tokenOut: Token) {
-    const balances = await this.binanceClientService.client.userAsset();
+    const balances = await this.binanceClientService.userAsset();
 
     const balanceOfTokenIn = Object.values(
       balances.find((balance) => balance.asset === tokenIn.ex_symbol) || [0],
